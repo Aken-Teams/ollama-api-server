@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  pp-ocr-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    container_name: pp-ocr-gpu
+    ports:
+      - "8002:8132"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0

@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic
+requests
+aiomysql
+pymysql
+python-multipart

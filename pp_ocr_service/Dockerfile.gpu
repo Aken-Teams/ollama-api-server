@@ -1,0 +1,38 @@
+FROM nvidia/cuda:11.8-cudnn8-runtime-ubuntu22.04
+
+WORKDIR /app
+
+# 設定環境變數
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# 安裝 Python 和系統依賴
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/bin/python
+
+# 複製依賴文件
+COPY requirements-gpu.txt .
+
+# 安裝 Python 依賴 (GPU 版本)
+RUN pip install --no-cache-dir -r requirements-gpu.txt
+
+# 預先下載 PaddleOCR 模型
+RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(lang='ch', use_gpu=True)"
+
+# 複製應用程式
+COPY . .
+
+# 暴露端口
+EXPOSE 8132
+
+# 啟動服務
+CMD ["uvicorn", "ocr_server:app", "--host", "0.0.0.0", "--port", "8132"]

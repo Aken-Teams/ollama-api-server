@@ -1,0 +1,32 @@
+services:
+  ollama-api-gateway:
+    build: .
+    container_name: ollama-api-gateway
+    ports:
+      - "8777:8777"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      - pp-ocr-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8777/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pp-ocr-service:
+    build: ./pp_ocr_service
+    container_name: pp-ocr-service
+    ports:
+      - "8132:8132"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8132/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
