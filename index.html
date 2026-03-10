@@ -13,25 +13,51 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f0f4f8;
             min-height: 100vh;
             padding: 20px;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 16px;
+            border: 2px solid #e2e8f0;
             overflow: hidden;
         }
-        
+
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             padding: 40px;
             text-align: center;
+            position: relative;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            background: #fbbf24;
+            border-radius: 50%;
+            opacity: 0.3;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            width: 40px;
+            height: 40px;
+            background: #34d399;
+            border-radius: 8px;
+            transform: rotate(15deg);
+            opacity: 0.4;
         }
         
         header h1 {
@@ -62,23 +88,23 @@
         }
         
         .tab:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: #e0e7ff;
         }
-        
+
         .tab.active {
             background: white;
-            color: #667eea;
+            color: #4f46e5;
             font-weight: bold;
         }
-        
+
         .tab.active::after {
             content: '';
             position: absolute;
             bottom: -2px;
             left: 0;
             right: 0;
-            height: 2px;
-            background: #667eea;
+            height: 3px;
+            background: #4f46e5;
         }
         
         .content {
@@ -122,19 +148,17 @@
         }
 
         .monitor-card {
-            background: linear-gradient(145deg, #ffffff, #f5f7fa);
-            border-radius: 16px;
+            background: white;
+            border-radius: 12px;
             padding: 24px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            border: 1px solid #e8ecf1;
-            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
         }
 
         .monitor-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            border-color: #4f46e5;
         }
 
         .monitor-card::before {
@@ -144,15 +168,15 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #28a745, #20c997);
+            background: #10b981;
         }
 
         .monitor-card.offline::before {
-            background: linear-gradient(90deg, #dc3545, #ff6b6b);
+            background: #ef4444;
         }
 
         .monitor-card.warning::before {
-            background: linear-gradient(90deg, #ffc107, #ffca2c);
+            background: #f59e0b;
         }
 
         .monitor-header {
@@ -176,14 +200,15 @@
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
         }
 
-        .monitor-icon.ollama { background: linear-gradient(135deg, #00b894, #00cec9); }
-        .monitor-icon.deepseek { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
-        .monitor-icon.vision { background: linear-gradient(135deg, #fd79a8, #e84393); }
-        .monitor-icon.speech { background: linear-gradient(135deg, #fdcb6e, #f39c12); }
-        .monitor-icon.ocr { background: linear-gradient(135deg, #74b9ff, #0984e3); }
+        .monitor-icon.ollama { background: #10b981; }
+        .monitor-icon.deepseek { background: #8b5cf6; }
+        .monitor-icon.vision { background: #ec4899; }
+        .monitor-icon.speech { background: #f59e0b; }
+        .monitor-icon.ocr { background: #3b82f6; }
+        .monitor-icon.deepseek-ocr { background: #6366f1; }
 
         .monitor-name {
             font-size: 16px;
@@ -289,8 +314,8 @@
         }
 
         .overall-status {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
+            background: #4f46e5;
+            border-radius: 12px;
             padding: 30px;
             color: white;
             margin-bottom: 30px;
@@ -299,19 +324,46 @@
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .overall-status::before {
+            content: '';
+            position: absolute;
+            top: -30px;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+
+        .overall-status::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 100px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            transform: rotate(20deg);
         }
 
         .overall-status-main {
             display: flex;
             align-items: center;
             gap: 20px;
+            position: relative;
+            z-index: 1;
         }
 
         .overall-status-icon {
             width: 64px;
             height: 64px;
             background: rgba(255,255,255,0.2);
-            border-radius: 50%;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -393,7 +445,7 @@
             background: white;
             border-radius: 50%;
             transition: transform 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border: 1px solid #e2e8f0;
         }
 
         .toggle-switch.active::after {
@@ -427,9 +479,9 @@
 
         /* 模型快速測試樣式 */
         .model-quick-test {
-            background: linear-gradient(135deg, #f8f9ff, #ffffff);
-            border: 1px solid #e0e5ec;
-            border-radius: 16px;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
             padding: 24px;
         }
 
@@ -453,11 +505,19 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #28a745, #20c997);
+            background: #10b981;
+        }
+
+        .btn-primary:hover {
+            background: #059669;
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #6c757d, #495057);
+            background: #64748b;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
         }
 
         .quick-test-desc {
@@ -477,7 +537,7 @@
 
         .test-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #28a745, #20c997);
+            background: #10b981;
             border-radius: 4px;
             transition: width 0.3s ease;
             width: 0%;
@@ -507,30 +567,29 @@
 
         .model-test-card {
             background: white;
-            border: 2px solid #e0e5ec;
+            border: 2px solid #e2e8f0;
             border-radius: 12px;
             padding: 16px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .model-test-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            border-color: #4f46e5;
         }
 
         .model-test-card.testing {
-            border-color: #ffc107;
-            background: linear-gradient(135deg, #fffbeb, #ffffff);
+            border-color: #f59e0b;
+            background: #fef3c7;
         }
 
         .model-test-card.success {
-            border-color: #28a745;
-            background: linear-gradient(135deg, #d4edda, #ffffff);
+            border-color: #10b981;
+            background: #d1fae5;
         }
 
         .model-test-card.failed {
-            border-color: #dc3545;
-            background: linear-gradient(135deg, #f8d7da, #ffffff);
+            border-color: #ef4444;
+            background: #fee2e2;
         }
 
         .model-card-header {
@@ -613,17 +672,174 @@
         }
 
         .model-card-btn.test {
-            background: #667eea;
+            background: #4f46e5;
             color: white;
         }
 
         .model-card-btn.test:hover {
-            background: #5a6fd6;
+            background: #4338ca;
         }
 
         .model-card-btn.test:disabled {
             background: #adb5bd;
             cursor: not-allowed;
+        }
+
+        .model-card-btn.api-guide {
+            background: #6366f1;
+            color: white;
+        }
+
+        .model-card-btn.api-guide:hover {
+            background: #4f46e5;
+        }
+
+        /* Provider 分組樣式 */
+        .provider-group {
+            margin-bottom: 24px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .provider-group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: #f8fafc;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .provider-group-header:hover {
+            background: #f1f5f9;
+        }
+
+        .provider-group-header .toggle-icon {
+            font-size: 14px;
+            transition: transform 0.2s;
+            color: #64748b;
+        }
+
+        .provider-group-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .provider-group-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1e293b;
+        }
+
+        .provider-badge {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .provider-badge.local {
+            background: #10b981;
+        }
+
+        .provider-badge.deepseek {
+            background: #3b82f6;
+        }
+
+        .provider-badge.siliconflow {
+            background: #8b5cf6;
+        }
+
+        .provider-model-count {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+
+        .provider-group-body {
+            padding: 16px;
+        }
+
+        .provider-group-body.collapsed {
+            display: none;
+        }
+
+        .provider-group-body .model-test-grid {
+            margin-bottom: 0;
+        }
+
+        /* API 引導區塊樣式 */
+        .model-card-api-guide {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0f4ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .model-card-api-guide.show {
+            display: block;
+        }
+
+        .api-guide-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            color: #4b5563;
+        }
+
+        .api-guide-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .api-guide-label {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .api-guide-endpoint {
+            font-family: monospace;
+            background: #e0e7ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            word-break: break-all;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .api-guide-endpoint:hover {
+            background: #c7d2fe;
+        }
+
+        .api-guide-endpoint::after {
+            content: ' 📋';
+            font-size: 11px;
+        }
+
+        .api-guide-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 4px 10px;
+            background: #e0e7ff;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .api-guide-link:hover {
+            background: #c7d2fe;
+            text-decoration: underline;
         }
 
         .test-summary {
@@ -695,22 +911,22 @@
         }
         
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             border: none;
             padding: 12px 30px;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: background 0.2s;
         }
-        
+
         .btn:hover {
-            transform: translateY(-2px);
+            background: #4338ca;
         }
-        
+
         .btn:active {
-            transform: translateY(0);
+            background: #3730a3;
         }
         
         .response-box {
@@ -792,12 +1008,24 @@
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             padding: 25px;
-            border-radius: 15px;
+            border-radius: 12px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
         }
 
         .stat-icon {
@@ -876,7 +1104,7 @@
 
         .chart-bar-fill {
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             border-radius: 4px;
             transition: width 0.3s ease;
         }
@@ -889,8 +1117,12 @@
         }
 
         .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            background: #ef4444;
             margin-left: 10px;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
         }
 
         /* History styles */
@@ -1030,12 +1262,12 @@
 
         /* Model info panel */
         .model-info-panel {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 15px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #4f46e5;
         }
 
         .model-info-header {
@@ -1097,24 +1329,23 @@
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             position: relative;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s ease;
+            border: 3px solid #4338ca;
         }
 
         .mic-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+            background: #4338ca;
         }
 
         .mic-button.recording {
-            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
-            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+            background: #ef4444;
+            border-color: #dc2626;
             animation: pulse-recording 1.5s infinite;
         }
 
@@ -1164,7 +1395,7 @@
         .wave-bar {
             width: 6px;
             height: 20px;
-            background: linear-gradient(180deg, #ff4757, #ff6b81);
+            background: #ef4444;
             border-radius: 3px;
             animation: wave-animation 0.5s ease-in-out infinite;
         }
@@ -1185,7 +1416,8 @@
         }
 
         .mic-button.processing {
-            background: linear-gradient(135deg, #ffa502 0%, #ff7f50 100%);
+            background: #f59e0b;
+            border-color: #d97706;
             cursor: not-allowed;
         }
 
@@ -1201,7 +1433,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -1214,11 +1446,11 @@
 
         .login-box {
             background: white;
-            border-radius: 20px;
+            border-radius: 16px;
             padding: 50px;
             width: 100%;
             max-width: 450px;
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+            border: 2px solid #e2e8f0;
             text-align: center;
         }
 
@@ -1261,25 +1493,24 @@
 
         .login-input-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4f46e5;
         }
 
         .login-btn {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             border: none;
             border-radius: 10px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: background 0.2s;
         }
 
         .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            background: #4338ca;
         }
 
         .login-btn:disabled {
@@ -1541,7 +1772,7 @@
                 </div>
 
                 <!-- 模型卡片網格 -->
-                <div id="model-test-grid" class="model-test-grid">
+                <div id="model-test-grid">
                     <div class="model-test-loading">載入模型列表中...</div>
                 </div>
 
@@ -1768,7 +1999,7 @@
                 <!-- 麥克風翻譯結果 -->
                 <div id="mic-translate-container" class="ai-response-container" style="display:none; margin-top: 15px; border-left: 4px solid #17a2b8;">
                     <div class="ai-response-header">
-                        <span class="ai-model-badge" style="background: linear-gradient(135deg, #17a2b8, #138496);">🌐 翻譯結果</span>
+                        <span class="ai-model-badge" style="background: #0891b2;">🌐 翻譯結果</span>
                         <span id="mic-translate-lang" style="font-size: 13px; color: #6c757d;"></span>
                     </div>
                     <div id="mic-translate-result" class="ai-response-content" style="min-height: 80px;"></div>
@@ -1847,7 +2078,7 @@
                 <!-- 翻譯結果 -->
                 <div id="translate-result-container" class="ai-response-container" style="display:none; margin-top: 15px; border-left: 4px solid #17a2b8;">
                     <div class="ai-response-header">
-                        <span class="ai-model-badge" style="background: linear-gradient(135deg, #17a2b8, #138496);">🌐 翻譯結果</span>
+                        <span class="ai-model-badge" style="background: #0891b2;">🌐 翻譯結果</span>
                         <span id="translate-target-lang" style="font-size: 13px; color: #6c757d;"></span>
                     </div>
                     <div id="translate-result" class="ai-response-content" style="min-height: 80px;"></div>
@@ -2028,7 +2259,7 @@ console.log('轉錄結果:', result.text);</pre>
                         <div class="ocr-upload-area" id="ocr-upload-area">
                             <div id="ocr-upload-placeholder">
                                 <div class="ocr-upload-icon">📄</div>
-                                <div class="ocr-upload-text">拖放圖片到此處</div>
+                                <div class="ocr-upload-text">拖放圖片或 PDF 到此處</div>
                                 <div class="ocr-upload-hint">或點擊選擇檔案</div>
                                 <div class="ocr-upload-formats">
                                     <span class="ocr-format-badge">JPG</span>
@@ -2036,12 +2267,17 @@ console.log('轉錄結果:', result.text);</pre>
                                     <span class="ocr-format-badge">GIF</span>
                                     <span class="ocr-format-badge">WebP</span>
                                     <span class="ocr-format-badge">BMP</span>
+                                    <span class="ocr-format-badge" style="background: #ef4444;">PDF</span>
                                 </div>
                                 <div class="ocr-upload-hint" style="margin-top: 12px;">最大 20MB</div>
                             </div>
-                            <img id="ocr-preview" style="display: none; max-width: 100%; max-height: 350px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);" />
+                            <img id="ocr-preview" style="display: none; max-width: 100%; max-height: 350px; border-radius: 12px; border: 2px solid #e2e8f0;" />
+                            <div id="ocr-pdf-preview" style="display: none; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 12px;">
+                                <div style="font-size: 64px;">📑</div>
+                                <div style="margin-top: 10px; font-weight: bold;" id="ocr-pdf-name"></div>
+                            </div>
                         </div>
-                        <input type="file" id="ocr-input" accept="image/*" style="display: none;" />
+                        <input type="file" id="ocr-input" accept="image/*,.pdf,application/pdf" style="display: none;" />
 
                         <!-- 檔案資訊 -->
                         <div id="ocr-file-info" class="ocr-file-info" style="display: none;">
@@ -2077,6 +2313,11 @@ console.log('轉錄結果:', result.text);</pre>
                                     <span class="ocr-method-name">PP-OCR</span>
                                     <span class="ocr-method-desc">傳統 OCR 引擎</span>
                                 </button>
+                                <button type="button" class="ocr-method-btn" data-method="deepseek" onclick="switchOcrMethod('deepseek')">
+                                    <span class="ocr-method-icon">🔮</span>
+                                    <span class="ocr-method-name">DeepSeek OCR</span>
+                                    <span class="ocr-method-desc">GPU 加速高精度</span>
+                                </button>
                                 <button type="button" class="ocr-method-btn" data-method="vision" onclick="switchOcrMethod('vision')">
                                     <span class="ocr-method-icon">👁️</span>
                                     <span class="ocr-method-name">視覺模型</span>
@@ -2097,6 +2338,28 @@ console.log('轉錄結果:', result.text);</pre>
                             <div class="ocr-model-desc-box">
                                 <p id="ocr-model-desc" class="ocr-model-desc-text">選擇適合您需求的 OCR 模型</p>
                             </div>
+                        </div>
+
+                        <!-- DeepSeek OCR 設定 -->
+                        <div id="deepseek-settings" class="ocr-setting-group" style="display: none;">
+                            <div class="ocr-vision-model-info" style="margin-bottom: 15px;">
+                                <span class="ocr-vision-badge" style="background: #7c3aed;">🔮 DeepSeek OCR</span>
+                                <span class="ocr-vision-hint">GPU 加速高精度辨識，支援複雜文件與手寫</span>
+                            </div>
+                            <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 8px; padding: 10px; margin-bottom: 15px; font-size: 13px;">
+                                ✅ <strong>提示：</strong>支援圖片（PNG、JPG）及 PDF 檔案。系統會自動偵測 PDF 是否包含可提取文字，若無則自動轉圖片進行 OCR。
+                            </div>
+                            <div class="ocr-setting-label">
+                                <span class="ocr-setting-label-icon">🌍</span>
+                                辨識語言
+                            </div>
+                            <select id="deepseek-language" class="ocr-select">
+                                <option value="auto">自動偵測</option>
+                                <option value="zh">中文</option>
+                                <option value="en">英文</option>
+                                <option value="ja">日文</option>
+                                <option value="ko">韓文</option>
+                            </select>
                         </div>
 
                         <!-- 視覺模型設定 -->
@@ -2257,7 +2520,7 @@ console.log('轉錄結果:', result.text);</pre>
                 </div>
 
                 <!-- 餘額顯示 -->
-                <div id="deepseek-balance" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <div id="deepseek-balance" style="display: none; background: #4f46e5; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-size: 14px; opacity: 0.9;">DeepSeek 帳戶餘額</div>
@@ -2284,6 +2547,50 @@ console.log('轉錄結果:', result.text);</pre>
                     </div>
                     <p style="font-size: 12px; color: #999; margin-top: 10px;">
                         💡 API Key 可從 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color: #1e88e5;">DeepSeek 平台</a> 獲取
+                    </p>
+                </div>
+            </div>
+
+            <!-- SiliconFlow API Key 管理 -->
+            <div class="status-card" style="margin-bottom: 30px; border-left: 4px solid #10b981;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #10b981;">🌊 SiliconFlow API Key 管理</h3>
+                    <button class="btn" style="padding: 8px 16px; font-size: 14px; background: #10b981;" onclick="loadSiliconFlowConfig()">重新整理</button>
+                </div>
+
+                <!-- 當前狀態 -->
+                <div id="siliconflow-status" style="margin-bottom: 20px;">
+                    <p style="color: #666;">載入中...</p>
+                </div>
+
+                <!-- 模型數量顯示 -->
+                <div id="siliconflow-info" style="display: none; background: #10b981; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 14px; opacity: 0.9;">SiliconFlow 可用模型</div>
+                            <div id="siliconflow-model-count" style="font-size: 28px; font-weight: bold; margin-top: 5px;">--</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div id="siliconflow-available" style="font-size: 14px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.2);">--</div>
+                            <div id="siliconflow-key-display" style="font-size: 12px; margin-top: 8px; opacity: 0.8; font-family: monospace;">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 更新 API Key -->
+                <div style="border-top: 1px solid #eee; padding-top: 20px;">
+                    <h4 style="margin-bottom: 15px;">更新 API Key</h4>
+                    <div style="display: flex; gap: 15px; align-items: end;">
+                        <div class="input-group" style="margin: 0; flex: 1;">
+                            <label>新的 SiliconFlow API Key</label>
+                            <input type="password" id="new-siliconflow-key" placeholder="sk-xxxxxxxxxxxxxxxx" style="font-family: monospace;">
+                        </div>
+                        <button class="btn" onclick="updateSiliconFlowKey()" style="white-space: nowrap; background: #10b981;">
+                            更新 Key
+                        </button>
+                    </div>
+                    <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                        💡 API Key 可從 <a href="https://cloud.siliconflow.cn/account/ak" target="_blank" style="color: #10b981;">SiliconFlow 平台</a> 獲取
                     </p>
                 </div>
             </div>
@@ -2333,212 +2640,61 @@ console.log('轉錄結果:', result.text);</pre>
         <div id="docs" class="content">
             <h2>API 使用文檔</h2>
 
-            <h3>功能特點</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h4>負載均衡</h4>
-                    <p>自動在多個 Ollama 端點間分配請求</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h4>自動重試</h4>
-                    <p>失敗時自動切換到其他可用端點</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💓</div>
-                    <h4>健康檢查</h4>
-                    <p>定期檢查端點狀態，避免使用故障節點</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h4>統一接口</h4>
-                    <p>兼容 OpenAI API 格式</p>
-                </div>
-            </div>
+            <!-- OCR API 文檔 -->
+            <h3>📝 OCR API 文檔</h3>
+            <p style="color: #666; margin-bottom: 20px;">文字辨識 API，支援多種 OCR 引擎，包含 DeepSeek OCR（GPU 加速）、PP-OCR 及 LLaVA 視覺模型。</p>
 
-            <!-- IDE Coding 設定 -->
-            <h3>🖥️ IDE / Coding Assistant 設定</h3>
-            <p style="margin-bottom: 15px;">以下是各種 IDE 和 AI Coding 工具的設定方式：</p>
-
-            <h4>VS Code - Continue 擴充套件</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre>// ~/.continue/config.json
-{
-  "models": [
-    {
-      "title": "PJ API - Qwen 2.5 72B",
-      "provider": "openai",
-      "model": "qwen2.5:72b",
-      "apiBase": "https://ollama_pjapi.theaken.com/v1",
-      "apiKey": "not-needed"
-    },
-    {
-      "title": "PJ API - GPT-OSS 120B",
-      "provider": "openai",
-      "model": "gpt-oss:120b",
-      "apiBase": "https://ollama_pjapi.theaken.com/v1",
-      "apiKey": "not-needed"
-    },
-    {
-      "title": "PJ API - DeepSeek Chat",
-      "provider": "openai",
-      "model": "deepseek-chat",
-      "apiBase": "https://ollama_pjapi.theaken.com/v1",
-      "apiKey": "not-needed"
-    }
-  ],
-  "tabAutocompleteModel": {
-    "title": "PJ API Autocomplete",
-    "provider": "openai",
-    "model": "gpt-oss-safeguard:20b",
-    "apiBase": "https://ollama_pjapi.theaken.com/v1",
-    "apiKey": "not-needed"
-  }
-}</pre>
-                </div>
-            </div>
-
-            <h4>Cursor IDE 設定</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre>// Cursor Settings > Models > OpenAI API
-Base URL: https://ollama_pjapi.theaken.com/v1
-API Key: not-needed
-Model: qwen2.5:72b 或 gpt-oss:120b</pre>
-                </div>
-            </div>
-
-            <h4>Cline (Claude Dev) 擴充套件</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre>// VS Code Settings > Cline
-API Provider: OpenAI Compatible
-Base URL: https://ollama_pjapi.theaken.com/v1
-API Key: not-needed
-Model ID: qwen2.5:72b</pre>
-                </div>
-            </div>
-
-            <h4>Aider (Terminal AI Coding)</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre># 環境變數設定
-export OPENAI_API_BASE=https://ollama_pjapi.theaken.com/v1
-export OPENAI_API_KEY=not-needed
-
-# 執行 Aider
-aider --model openai/qwen2.5:72b</pre>
-                </div>
-            </div>
-
-            <h4>LM Studio / Open WebUI</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre>Server URL: https://ollama_pjapi.theaken.com
-API Key: not-needed (或任意字串)
-
-# 支援的模型 ID:
-- qwen2.5:72b        (推薦：中文最強)
-- gpt-oss:120b       (推薦：複雜推理)
-- gpt-oss-safeguard:20b (快速回應)
-- deepseek-chat      (一般對話)
-- deepseek-reasoner  (數學推理)</pre>
-                </div>
-            </div>
-
-            <h4>OpenAI Python SDK</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre>from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://ollama_pjapi.theaken.com/v1",
-    api_key="not-needed"  # API Key 不需要，但必須提供
-)
-
-response = client.chat.completions.create(
-    model="qwen2.5:72b",
-    messages=[
-        {"role": "system", "content": "你是一個專業的程式設計助手"},
-        {"role": "user", "content": "請幫我寫一個 Python 快速排序"}
-    ]
-)
-
-print(response.choices[0].message.content)</pre>
-                </div>
-            </div>
-
-            <h3>API 端點</h3>
-
-            <h4>基礎 URL</h4>
-            <div class="code-block">
-                <pre>https://ollama_pjapi.theaken.com</pre>
-            </div>
-
-            <h4>可用端點列表</h4>
+            <h4>可用 OCR 模型</h4>
             <table class="api-table">
                 <thead>
                     <tr>
-                        <th>方法</th>
-                        <th>端點</th>
-                        <th>說明</th>
+                        <th>模型 ID</th>
+                        <th>名稱</th>
+                        <th>特點</th>
+                        <th>最適用場景</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><span class="method-get">GET</span></td>
-                        <td><code>/</code></td>
-                        <td>根路徑，返回服務資訊和管理介面</td>
+                        <td><code>deepseek-ocr</code></td>
+                        <td>🔮 DeepSeek OCR</td>
+                        <td>GPU 加速、高精度、智能版面分析</td>
+                        <td>複雜文件、手寫辨識、多語言混排</td>
                     </tr>
                     <tr>
-                        <td><span class="method-get">GET</span></td>
-                        <td><code>/health</code></td>
-                        <td>健康檢查，返回各端點狀態</td>
+                        <td><code>pp-ocrv5</code></td>
+                        <td>📄 PP-OCRv5</td>
+                        <td>超高精度、80+ 語言、表格辨識</td>
+                        <td>高精度需求、多語言文件、表格</td>
                     </tr>
                     <tr>
-                        <td><span class="method-get">GET</span></td>
-                        <td><code>/v1/models</code></td>
-                        <td>列出所有可用模型及詳細資訊</td>
+                        <td><code>llava-ocr</code></td>
+                        <td>👁️ LLaVA 7B OCR</td>
+                        <td>AI 智能辨識、理解上下文</td>
+                        <td>一般文件、手寫辨識、複雜版面</td>
                     </tr>
                     <tr>
-                        <td><span class="method-post">POST</span></td>
-                        <td><code>/v1/chat/completions</code></td>
-                        <td>聊天完成請求（支援串流模式）</td>
+                        <td><code>general-ocr</code></td>
+                        <td>📋 通用 OCR</td>
+                        <td>高精度、快速處理</td>
+                        <td>印刷文件、清晰圖片</td>
                     </tr>
                     <tr>
-                        <td><span class="method-post">POST</span></td>
-                        <td><code>/v1/completions</code></td>
-                        <td>文本完成請求</td>
+                        <td><code>table-ocr</code></td>
+                        <td>📊 表格 OCR</td>
+                        <td>表格結構保留、欄位對齊</td>
+                        <td>表格、報表、財務文件</td>
                     </tr>
                     <tr>
-                        <td><span class="method-get">GET</span></td>
-                        <td><code>/api/stats</code></td>
-                        <td>取得使用統計數據</td>
-                    </tr>
-                    <tr>
-                        <td><span class="method-get">GET</span></td>
-                        <td><code>/api/conversations</code></td>
-                        <td>取得對話紀錄（支援分頁）</td>
+                        <td><code>invoice-ocr</code></td>
+                        <td>🧾 發票 OCR</td>
+                        <td>發票格式、金額辨識</td>
+                        <td>發票、收據、帳單</td>
                     </tr>
                 </tbody>
             </table>
 
-            <h3>認證說明</h3>
-            <div class="info-box">
-                <p><strong>無需 API Key</strong> - 此 API Gateway 已內建認證機制，客戶端無需提供 API Key。</p>
-                <p>如果您的工具要求必須填入 API Key，請填入任意字串（如 <code>not-needed</code>）。</p>
-            </div>
-
-            <h3>請求參數詳解</h3>
-            <h4>POST /v1/chat/completions</h4>
+            <h4 style="margin-top: 25px;">POST /v1/ocr/recognize 參數</h4>
             <table class="api-table">
                 <thead>
                     <tr>
@@ -2550,299 +2706,504 @@ print(response.choices[0].message.content)</pre>
                 </thead>
                 <tbody>
                     <tr>
+                        <td><code>file</code></td>
+                        <td>File</td>
+                        <td>✅</td>
+                        <td>上傳的圖片或 PDF 檔案（支援 JPG、PNG、GIF、WebP、BMP、PDF）</td>
+                    </tr>
+                    <tr>
                         <td><code>model</code></td>
                         <td>string</td>
-                        <td>✅</td>
-                        <td>模型 ID，如 <code>qwen2.5:72b</code></td>
-                    </tr>
-                    <tr>
-                        <td><code>messages</code></td>
-                        <td>array</td>
-                        <td>✅</td>
-                        <td>對話訊息陣列，包含 role 和 content</td>
-                    </tr>
-                    <tr>
-                        <td><code>temperature</code></td>
-                        <td>float</td>
                         <td>❌</td>
-                        <td>溫度值 0-2，預設 0.7，越高越隨機</td>
+                        <td>OCR 模型，預設 <code>llava-ocr</code>，推薦 <code>deepseek-ocr</code></td>
                     </tr>
                     <tr>
-                        <td><code>max_tokens</code></td>
-                        <td>integer</td>
+                        <td><code>output_format</code></td>
+                        <td>string</td>
                         <td>❌</td>
-                        <td>最大回應 token 數</td>
+                        <td>輸出格式：<code>text</code>、<code>json</code>、<code>markdown</code>、<code>all</code></td>
                     </tr>
                     <tr>
-                        <td><code>stream</code></td>
-                        <td>boolean</td>
+                        <td><code>language</code></td>
+                        <td>string</td>
                         <td>❌</td>
-                        <td>是否使用串流模式，預設 false</td>
-                    </tr>
-                    <tr>
-                        <td><code>top_p</code></td>
-                        <td>float</td>
-                        <td>❌</td>
-                        <td>核採樣參數，預設 1.0</td>
-                    </tr>
-                    <tr>
-                        <td><code>frequency_penalty</code></td>
-                        <td>float</td>
-                        <td>❌</td>
-                        <td>頻率懲罰，減少重複，預設 0</td>
-                    </tr>
-                    <tr>
-                        <td><code>presence_penalty</code></td>
-                        <td>float</td>
-                        <td>❌</td>
-                        <td>存在懲罰，增加新話題，預設 0</td>
+                        <td>辨識語言：<code>auto</code>（自動）、<code>zh</code>、<code>en</code>、<code>ja</code>、<code>ko</code></td>
                     </tr>
                 </tbody>
             </table>
 
-            <h4>請求範例</h4>
+            <div class="info-box" style="margin: 20px 0; background: #d4edda; border-left: 4px solid #28a745;">
+                <p><strong>💡 DeepSeek OCR PDF 智能處理：</strong></p>
+                <p>上傳 PDF 時，系統會自動偵測是否包含可提取文字。若有內嵌文字則直接提取（更快更準確），若為掃描檔則自動轉圖片進行 OCR。</p>
+            </div>
+
+            <h4 style="margin-top: 25px;">Python 基礎設定</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre>import requests
+
+API_URL = "https://ollama_pjapi.theaken.com"
+API_KEY = "YOUR_API_KEY"
+
+headers = {"Authorization": f"Bearer {API_KEY}"}
+
+def ocr_recognize(file_path, model, language="auto", output_format="text"):
+    """通用 OCR 辨識函數"""
+    with open(file_path, "rb") as f:
+        response = requests.post(
+            f"{API_URL}/v1/ocr/recognize",
+            headers=headers,
+            files={"file": f},
+            data={
+                "model": model,
+                "language": language,
+                "output_format": output_format
+            }
+        )
+    return response.json()</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">🔮 DeepSeek OCR（GPU 加速高精度）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># DeepSeek OCR - 複雜文件、手寫辨識、多語言混排
+result = ocr_recognize(
+    file_path="document.png",
+    model="deepseek-ocr",
+    language="auto"  # 支援: auto, zh, en, ja, ko
+)
+print("辨識結果:", result["text"])
+print("信心度:", result["confidence"])
+
+# DeepSeek OCR 辨識 PDF（自動偵測內嵌文字或轉圖片 OCR）
+result = ocr_recognize(
+    file_path="document.pdf",
+    model="deepseek-ocr",
+    language="zh"
+)
+print(result["text"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">📄 PP-OCRv5（超高精度多語言）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># PP-OCRv5 - 高精度需求、80+ 語言支援、表格辨識
+result = ocr_recognize(
+    file_path="multilang_doc.png",
+    model="pp-ocrv5",
+    language="auto",
+    output_format="markdown"  # 支援: text, json, markdown, all
+)
+print("辨識結果:", result["text"])
+
+# PP-OCR 辨識多頁 PDF
+result = ocr_recognize(
+    file_path="report.pdf",
+    model="pp-ocrv5",
+    output_format="all"
+)
+print(result["text"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">👁️ LLaVA 7B OCR（AI 智能辨識）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># LLaVA OCR - AI 智能辨識、理解上下文、複雜版面
+result = ocr_recognize(
+    file_path="handwritten_note.jpg",
+    model="llava-ocr",
+    language="auto"
+)
+print("辨識結果:", result["text"])
+
+# LLaVA 適合處理手寫筆記、複雜排版
+result = ocr_recognize(
+    file_path="complex_layout.png",
+    model="llava-ocr"
+)
+print(result["text"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">📋 通用 OCR（快速處理）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 通用 OCR - 印刷文件、清晰圖片、快速處理
+result = ocr_recognize(
+    file_path="printed_doc.png",
+    model="general-ocr",
+    language="zh"
+)
+print("辨識結果:", result["text"])
+
+# 批量處理多個文件
+import os
+for filename in os.listdir("documents/"):
+    if filename.endswith((".png", ".jpg")):
+        result = ocr_recognize(f"documents/{filename}", model="general-ocr")
+        print(f"{filename}: {result['text'][:100]}...")</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">📊 表格 OCR（結構保留）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 表格 OCR - 表格結構保留、欄位對齊、Excel 匯出
+result = ocr_recognize(
+    file_path="spreadsheet.png",
+    model="table-ocr",
+    output_format="json"  # 推薦使用 json 格式取得結構化資料
+)
+print("辨識結果:", result["text"])
+
+# 處理財務報表
+result = ocr_recognize(
+    file_path="financial_report.pdf",
+    model="table-ocr",
+    output_format="markdown"
+)
+print(result["text"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">🧾 發票 OCR（財務專用）</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 發票 OCR - 發票格式、金額辨識、稅號提取
+result = ocr_recognize(
+    file_path="invoice.jpg",
+    model="invoice-ocr",
+    output_format="json"  # 推薦 json 格式取得結構化發票資訊
+)
+print("辨識結果:", result["text"])
+
+# 處理收據
+result = ocr_recognize(
+    file_path="receipt.png",
+    model="invoice-ocr"
+)
+print(result["text"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">查詢 OCR 模型與健康狀態</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 查詢所有可用 OCR 模型
+response = requests.get(f"{API_URL}/v1/ocr/models", headers=headers)
+models = response.json()["models"]
+for model in models:
+    status = "✅" if model["available"] else "❌"
+    print(f"{status} {model['id']}: {model['name']} - {model['best_for']}")
+
+# 檢查 OCR 服務健康狀態
+response = requests.get(f"{API_URL}/v1/ocr/health", headers=headers)
+health = response.json()
+print(f"服務狀態: {health['status']}")
+for service, status in health["services"].items():
+    print(f"  {service}: {status}")</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">OCR 回應格式</h4>
             <div class="code-wrapper">
                 <button class="copy-btn" onclick="copyCode(this)">複製</button>
                 <div class="code-block">
                     <pre>{
-  "model": "qwen2.5:72b",
-  "messages": [
-    {
-      "role": "system",
-      "content": "你是一個專業的程式設計助手，擅長 Python、JavaScript 和 SQL。"
-    },
-    {
-      "role": "user",
-      "content": "請幫我寫一個 Python 函數來計算費氏數列"
+    "success": true,
+    "text": "辨識出的文字內容...",
+    "confidence": 0.95,
+    "model": "deepseek-ocr",
+    "processing_time": 1.234,
+    "details": {
+        "pages": 1,
+        "method": "direct_extraction"  // 或 "ocr"
     }
-  ],
-  "temperature": 0.7,
-  "max_tokens": 2000,
-  "stream": true
 }</pre>
                 </div>
             </div>
 
-            <h4>回應格式</h4>
+            <!-- Chat Completions API 文檔 -->
+            <h3 style="margin-top: 40px;">💬 Chat Completions API 文檔</h3>
+            <p style="color: #666; margin-bottom: 20px;">對話生成 API，支援多種地端與雲端模型，相容 OpenAI API 格式。</p>
+
+            <h4>可用模型分類</h4>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>類型</th>
+                        <th>提供者</th>
+                        <th>模型範例</th>
+                        <th>特點</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #e8f5e9;">
+                        <td><span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 4px;">地端</span></td>
+                        <td>llama.cpp</td>
+                        <td><code>gpt-oss:120b</code></td>
+                        <td>本地運行、無網路需求、資料隱私</td>
+                    </tr>
+                    <tr style="background: #e8f5e9;">
+                        <td><span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 4px;">地端</span></td>
+                        <td>Ollama</td>
+                        <td><code>qwen2.5:72b</code>, <code>llava:7b</code></td>
+                        <td>本地視覺模型、快速回應</td>
+                    </tr>
+                    <tr style="background: #e3f2fd;">
+                        <td><span style="background: #2196f3; color: white; padding: 2px 8px; border-radius: 4px;">雲端</span></td>
+                        <td>DeepSeek</td>
+                        <td><code>deepseek-chat</code>, <code>deepseek-reasoner</code></td>
+                        <td>高效能、推理專精</td>
+                    </tr>
+                    <tr style="background: #e0f2f1;">
+                        <td><span style="background: #009688; color: white; padding: 2px 8px; border-radius: 4px;">雲端</span></td>
+                        <td>SiliconFlow</td>
+                        <td><code>deepseek-ai/DeepSeek-V3</code>, <code>Qwen/Qwen3-235B-A22B</code></td>
+                        <td>50+ 模型、多廠商整合</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 25px;">SiliconFlow 熱門模型</h4>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>模型 ID</th>
+                        <th>名稱</th>
+                        <th>特點</th>
+                        <th>最適用場景</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>deepseek-ai/DeepSeek-R1</code></td>
+                        <td>DeepSeek R1</td>
+                        <td>深度推理、思維鏈</td>
+                        <td>數學證明、邏輯分析</td>
+                    </tr>
+                    <tr>
+                        <td><code>deepseek-ai/DeepSeek-V3</code></td>
+                        <td>DeepSeek V3</td>
+                        <td>通用對話、128K 上下文</td>
+                        <td>日常對話、長文本</td>
+                    </tr>
+                    <tr>
+                        <td><code>Qwen/Qwen3-235B-A22B</code></td>
+                        <td>Qwen 3 235B</td>
+                        <td>2350 億參數、頂尖性能</td>
+                        <td>複雜任務、專業諮詢</td>
+                    </tr>
+                    <tr>
+                        <td><code>Qwen/Qwen2.5-72B-Instruct</code></td>
+                        <td>Qwen 2.5 72B</td>
+                        <td>中文頂尖、指令跟隨</td>
+                        <td>中文寫作、知識問答</td>
+                    </tr>
+                    <tr>
+                        <td><code>Qwen/Qwen2.5-Coder-32B-Instruct</code></td>
+                        <td>Qwen Coder 32B</td>
+                        <td>程式碼專精</td>
+                        <td>程式開發、代碼審查</td>
+                    </tr>
+                    <tr>
+                        <td><code>zai-org/GLM-4.7</code></td>
+                        <td>GLM-4.7</td>
+                        <td>智譜最新版</td>
+                        <td>中文對話、內容創作</td>
+                    </tr>
+                    <tr>
+                        <td><code>moonshotai/Kimi-K2-Thinking</code></td>
+                        <td>Kimi K2 Thinking</td>
+                        <td>深度思考、推理增強</td>
+                        <td>複雜推理、數學問題</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 25px;">Python 基礎設定</h4>
             <div class="code-wrapper">
                 <button class="copy-btn" onclick="copyCode(this)">複製</button>
                 <div class="code-block">
-                    <pre>{
-  "id": "chatcmpl-xxx",
-  "object": "chat.completion",
-  "created": 1234567890,
-  "model": "qwen2.5:72b",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "這是 AI 的回應內容..."
-      },
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 50,
-    "completion_tokens": 100,
-    "total_tokens": 150
-  }
-}</pre>
+                    <pre>import requests
+
+API_URL = "https://ollama_pjapi.theaken.com"
+API_KEY = "YOUR_API_KEY"
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+def chat(model, messages, stream=False):
+    """通用對話函數"""
+    response = requests.post(
+        f"{API_URL}/v1/chat/completions",
+        headers=headers,
+        json={
+            "model": model,
+            "messages": messages,
+            "stream": stream
+        }
+    )
+    return response.json()</pre>
                 </div>
             </div>
 
-            <h3>模型選擇建議</h3>
-            <div class="model-recommendation">
-                <div class="rec-card">
-                    <h4>🏆 中文寫作 / 翻譯</h4>
-                    <p>推薦：<strong>Qwen 2.5 72B</strong></p>
-                    <p>頂尖的中文理解和生成能力</p>
-                </div>
-                <div class="rec-card">
-                    <h4>💻 程式開發 / Debug</h4>
-                    <p>推薦：<strong>GPT-OSS 120B</strong></p>
-                    <p>強大的推理和程式碼生成能力</p>
-                </div>
-                <div class="rec-card">
-                    <h4>⚡ 快速回應 / 客服</h4>
-                    <p>推薦：<strong>GPT-OSS Safeguard 20B</strong></p>
-                    <p>輕量快速，適合即時互動</p>
-                </div>
-                <div class="rec-card">
-                    <h4>🔢 數學 / 邏輯推理</h4>
-                    <p>推薦：<strong>DeepSeek Reasoner</strong></p>
-                    <p>專精數學和邏輯分析</p>
+            <h4 style="margin-top: 25px;">🏠 地端模型使用範例</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 使用地端 GPT-OSS 120B 模型
+result = chat(
+    model="gpt-oss:120b",
+    messages=[
+        {"role": "system", "content": "你是一個專業的助手"},
+        {"role": "user", "content": "請解釋什麼是機器學習"}
+    ]
+)
+print(result["choices"][0]["message"]["content"])
+
+# 使用地端 Qwen 2.5 72B 模型
+result = chat(
+    model="qwen2.5:72b",
+    messages=[{"role": "user", "content": "用中文寫一首詩"}]
+)
+print(result["choices"][0]["message"]["content"])</pre>
                 </div>
             </div>
 
-            <h3>📝 程式碼範例</h3>
+            <h4 style="margin-top: 25px;">☁️ SiliconFlow 雲端模型使用範例</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre># 使用 DeepSeek V3（通用對話）
+result = chat(
+    model="deepseek-ai/DeepSeek-V3",
+    messages=[{"role": "user", "content": "今天天氣如何？"}]
+)
+print(result["choices"][0]["message"]["content"])
 
-            <h4>Python 完整範例</h4>
+# 使用 DeepSeek R1（深度推理）
+result = chat(
+    model="deepseek-ai/DeepSeek-R1",
+    messages=[{"role": "user", "content": "證明根號2是無理數"}]
+)
+print(result["choices"][0]["message"]["content"])
+
+# 使用 Qwen 3 235B（頂尖性能）
+result = chat(
+    model="Qwen/Qwen3-235B-A22B",
+    messages=[{"role": "user", "content": "分析人工智能的未來發展趨勢"}]
+)
+print(result["choices"][0]["message"]["content"])
+
+# 使用 Qwen Coder（程式開發）
+result = chat(
+    model="Qwen/Qwen2.5-Coder-32B-Instruct",
+    messages=[{"role": "user", "content": "寫一個 Python 快速排序演算法"}]
+)
+print(result["choices"][0]["message"]["content"])</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">🔄 串流回應範例</h4>
             <div class="code-wrapper">
                 <button class="copy-btn" onclick="copyCode(this)">複製</button>
                 <div class="code-block">
                     <pre>import requests
 import json
 
-# API 設定
-API_URL = "https://ollama_pjapi.theaken.com"
+def chat_stream(model, messages):
+    """串流對話函數"""
+    response = requests.post(
+        f"{API_URL}/v1/chat/completions",
+        headers=headers,
+        json={
+            "model": model,
+            "messages": messages,
+            "stream": True
+        },
+        stream=True
+    )
 
-# 1. 列出可用模型
-response = requests.get(f"{API_URL}/v1/models")
-models = response.json()
-print(f"可用模型: {[m['id'] for m in models['data']]}")
-
-# 2. 聊天完成請求
-chat_request = {
-    "model": "qwen2.5:3b",
-    "messages": [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Hello, how are you?"}
-    ],
-    "temperature": 0.7
-}
-
-response = requests.post(
-    f"{API_URL}/v1/chat/completions",
-    json=chat_request
-)
-
-if response.status_code == 200:
-    result = response.json()
-    print(f"AI 回應: {result['choices'][0]['message']['content']}")
-
-# 3. 串流模式
-chat_request["stream"] = True
-response = requests.post(
-    f"{API_URL}/v1/chat/completions",
-    json=chat_request,
-    stream=True
-)
-
-for line in response.iter_lines():
-    if line:
-        if line.startswith(b"data: "):
-            data_str = line[6:].decode('utf-8')
-            if data_str.strip() != "[DONE]":
-                data = json.loads(data_str)
-                if 'choices' in data:
+    for line in response.iter_lines():
+        if line:
+            line = line.decode('utf-8')
+            if line.startswith('data: ') and line != 'data: [DONE]':
+                data = json.loads(line[6:])
+                if 'choices' in data and data['choices']:
                     delta = data['choices'][0].get('delta', {})
                     if 'content' in delta:
-                        print(delta['content'], end='', flush=True)</pre>
+                        print(delta['content'], end='', flush=True)
+
+# 使用串流回應
+chat_stream(
+    model="deepseek-ai/DeepSeek-V3",
+    messages=[{"role": "user", "content": "寫一篇關於AI的文章"}]
+)</pre>
                 </div>
             </div>
-            
-            <h4>JavaScript/Node.js 範例</h4>
+
+            <h4 style="margin-top: 25px;">📋 查詢可用模型</h4>
             <div class="code-wrapper">
                 <button class="copy-btn" onclick="copyCode(this)">複製</button>
                 <div class="code-block">
-                    <pre>// 使用 fetch API
-const API_URL = 'https://ollama_pjapi.theaken.com';
+                    <pre># 查詢所有可用模型
+response = requests.get(f"{API_URL}/v1/models", headers=headers)
+models = response.json()["data"]
 
-// 1. 列出模型
-async function listModels() {
-    const response = await authFetch(`${API_URL}/v1/models`);
-    const models = await response.json();
-    console.log('可用模型:', models.data.map(m => m.id));
-}
+# 按部署類型分類顯示
+local_models = [m for m in models if m.get("deployment_type") == "local"]
+cloud_models = [m for m in models if m.get("deployment_type") == "cloud"]
 
-// 2. 聊天請求
-async function chat(message) {
-    const response = await authFetch(`${API_URL}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'qwen2.5:3b',
-            messages: [
-                { role: 'system', content: 'You are a helpful assistant.' },
-                { role: 'user', content: message }
-            ],
-            temperature: 0.7
-        })
-    });
-    
-    const result = await response.json();
-    return result.choices[0].message.content;
-}
+print("=== 地端模型 ===")
+for m in local_models:
+    print(f"  {m['id']} ({m.get('provider', 'unknown')})")
 
-// 3. 串流模式
-async function chatStream(message) {
-    const response = await authFetch(`${API_URL}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'qwen2.5:3b',
-            messages: [
-                { role: 'user', content: message }
-            ],
-            stream: true
-        })
-    });
-    
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\\n');
-        
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data.trim() === '[DONE]') continue;
-                
-                try {
-                    const json = JSON.parse(data);
-                    if (json.choices?.[0]?.delta?.content) {
-                        process.stdout.write(json.choices[0].delta.content);
-                    }
-                } catch (e) {}
-            }
+print("\n=== 雲端模型 ===")
+for m in cloud_models:
+    provider = m.get('provider', 'unknown')
+    print(f"  {m['id']} ({provider})")</pre>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 25px;">Chat Completions 回應格式</h4>
+            <div class="code-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)">複製</button>
+                <div class="code-block">
+                    <pre>{
+    "id": "chatcmpl-xxx",
+    "object": "chat.completion",
+    "created": 1700000000,
+    "model": "deepseek-ai/DeepSeek-V3",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "回應內容..."
+            },
+            "finish_reason": "stop"
         }
-    }
-}
-
-// 使用範例
-listModels();
-chat('Hello!').then(console.log);
-chatStream('Tell me a joke');</pre>
-                </div>
-            </div>
-            
-            <h4>cURL 範例</h4>
-            <div class="code-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)">複製</button>
-                <div class="code-block">
-                    <pre># 列出模型
-curl https://ollama_pjapi.theaken.com/v1/models
-
-# 聊天請求
-curl https://ollama_pjapi.theaken.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen2.5:3b",
-    "messages": [
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'
-
-# 串流模式
-curl https://ollama_pjapi.theaken.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen2.5:3b",
-    "messages": [
-      {"role": "user", "content": "Tell me a story"}
     ],
-    "stream": true
-  }'</pre>
+    "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 50,
+        "total_tokens": 60
+    }
+}</pre>
                 </div>
             </div>
         </div>
@@ -3015,14 +3376,14 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                         availableDiv.style.background = 'rgba(220, 53, 69, 0.3)';
                     }
 
-                    // Update key display
-                    document.getElementById('deepseek-key-display').textContent = data.api_key_masked || '--';
+                    // Update key display (show status only, not the key)
+                    document.getElementById('deepseek-key-display').textContent = data.api_key_status || '--';
 
                     // Update status
                     statusDiv.innerHTML = `
                         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                             <div><strong>狀態：</strong> <span style="color: ${data.is_available ? '#28a745' : '#dc3545'};">${data.is_available ? '正常' : '餘額不足'}</span></div>
-                            <div><strong>API Key：</strong> <code style="background: #f1f1f1; padding: 2px 8px; border-radius: 4px;">${data.api_key_masked}</code></div>
+                            <div><strong>API Key：</strong> <span style="color: ${data.api_key_status === '已設定' ? '#28a745' : '#dc3545'};">${data.api_key_status}</span></div>
                         </div>
                     `;
                 } else {
@@ -3076,6 +3437,101 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             }
         }
 
+        // ========== SiliconFlow API Key Management ==========
+
+        // Load SiliconFlow config
+        async function loadSiliconFlowConfig() {
+            const statusDiv = document.getElementById('siliconflow-status');
+            const infoDiv = document.getElementById('siliconflow-info');
+
+            statusDiv.innerHTML = '<p style="color: #666;">載入中...</p>';
+            infoDiv.style.display = 'none';
+
+            try {
+                const response = await authFetch(`${API_URL}/api/siliconflow/config`);
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Show info card
+                    infoDiv.style.display = 'block';
+
+                    // Update model count
+                    const modelCount = data.models ? data.models.length : 0;
+                    document.getElementById('siliconflow-model-count').textContent = `${modelCount} 個模型`;
+
+                    // Update availability status
+                    const availableDiv = document.getElementById('siliconflow-available');
+                    if (data.api_key_status === '已設定') {
+                        availableDiv.textContent = '✓ 已配置';
+                        availableDiv.style.background = 'rgba(40, 167, 69, 0.3)';
+                    } else {
+                        availableDiv.textContent = '✗ 未配置';
+                        availableDiv.style.background = 'rgba(220, 53, 69, 0.3)';
+                    }
+
+                    // Update key display (show status only, not the key)
+                    document.getElementById('siliconflow-key-display').textContent = data.api_key_status || '--';
+
+                    // Update status
+                    statusDiv.innerHTML = `
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                            <div><strong>狀態：</strong> <span style="color: ${data.api_key_status === '已設定' ? '#28a745' : '#dc3545'};">${data.api_key_status === '已設定' ? '正常' : '未配置'}</span></div>
+                            <div><strong>API Key：</strong> <span style="color: ${data.api_key_status === '已設定' ? '#28a745' : '#dc3545'};">${data.api_key_status}</span></div>
+                            <div><strong>Base URL：</strong> <code style="background: #f1f1f1; padding: 2px 8px; border-radius: 4px;">${data.base_url}</code></div>
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    statusDiv.innerHTML = `<p style="color: #dc3545;">❌ ${errorData.detail || '無法載入 SiliconFlow 配置'}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: #dc3545;">❌ 載入失敗: ${error.message}</p>`;
+            }
+        }
+
+        // Update SiliconFlow API Key
+        async function updateSiliconFlowKey() {
+            const keyInput = document.getElementById('new-siliconflow-key');
+            const newKey = keyInput.value.trim();
+
+            if (!newKey) {
+                alert('請輸入新的 API Key');
+                return;
+            }
+
+            if (!newKey.startsWith('sk-')) {
+                alert('無效的 API Key 格式（應以 sk- 開頭）');
+                return;
+            }
+
+            if (!confirm('確定要更新 SiliconFlow API Key 嗎？')) {
+                return;
+            }
+
+            try {
+                const response = await authFetch(`${API_URL}/api/siliconflow/config`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ api_key: newKey })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    keyInput.value = '';
+                    loadSiliconFlowConfig();
+                } else {
+                    alert(`❌ 更新失敗: ${data.detail}`);
+                }
+            } catch (error) {
+                alert(`❌ 更新失敗: ${error.message}`);
+            }
+        }
+
         // ========== API Key Management ==========
 
         // Load API Keys list
@@ -3091,7 +3547,10 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
                 const data = await response.json();
 
-                if (!data.keys || data.keys.length === 0) {
+                // 過濾掉系統管理員帳號
+                const filteredKeys = data.keys ? data.keys.filter(key => key.username !== 'zhpjaiaoi') : [];
+
+                if (filteredKeys.length === 0) {
                     container.innerHTML = '<p style="color: #666;">尚無 API Key</p>';
                     return;
                 }
@@ -3109,7 +3568,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.keys.map(key => `
+                            ${filteredKeys.map(key => `
                                 <tr style="border-bottom: 1px solid #dee2e6;">
                                     <td style="padding: 12px;">
                                         <strong>${escapeHtml(key.username)}</strong>
@@ -3294,6 +3753,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             if (tabName === 'keys') {
                 loadApiKeys();
                 loadDeepSeekConfig();
+                loadSiliconFlowConfig();
             }
         }
         
@@ -3330,13 +3790,14 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         // 服務配置
         const serviceConfig = {
             'Endpoint-21180': { icon: '🦙', type: 'ollama', name: 'Ollama 21180', desc: 'LLM 推理服務', model: 'gpt-oss:120b' },
-            'Endpoint-21181': { icon: '🦙', type: 'ollama', name: 'Ollama 21181', desc: 'LLM 推理服務', model: 'DeepSeek-R1:671b' },
             'Endpoint-21182': { icon: '🦙', type: 'ollama', name: 'Ollama 21182', desc: 'Embedding 服務', model: 'Qwen3-Embedding-8B' },
             'Endpoint-21183': { icon: '🦙', type: 'ollama', name: 'Ollama 21183', desc: 'Reranker 服務', model: 'bge-reranker-v2-m3' },
+            'Endpoint-21185': { icon: '🧠', type: 'ollama', name: 'Qwen3.5 122B', desc: 'MoE 推理服務', model: 'Qwen3.5:122b' },
             'DeepSeek-pj': { icon: '🧠', type: 'deepseek', name: 'DeepSeek API', desc: '雲端 AI 服務' },
             'LLaVA-Local': { icon: '👁️', type: 'vision', name: 'LLaVA 視覺', desc: '本地視覺模型' },
             'Speech-STT-8131': { icon: '🎤', type: 'speech', name: '語音轉文字', desc: 'Speech-to-Text 服務' },
-            'OCR-Service': { icon: '📝', type: 'ocr', name: 'PP-OCR', desc: '文字辨識服務' }
+            'OCR-Service': { icon: '📝', type: 'ocr', name: 'PP-OCR', desc: '文字辨識服務' },
+            'DeepSeek-OCR': { icon: '🔮', type: 'deepseek-ocr', name: 'DeepSeek OCR', desc: 'GPU 加速 OCR' }
         };
 
         // 增強版狀態檢查
@@ -3373,17 +3834,17 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                     overallIcon.textContent = '✅';
                     overallTitle.textContent = '所有服務運行正常';
                     overallDesc.textContent = `${online} 個服務在線，${modelCount} 個模型可用`;
-                    document.getElementById('overall-status').style.background = 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)';
+                    document.getElementById('overall-status').style.background = '#10b981';
                 } else if (online > 0) {
                     overallIcon.textContent = '⚠️';
                     overallTitle.textContent = '部分服務異常';
                     overallDesc.textContent = `${offline} 個服務離線，請檢查`;
-                    document.getElementById('overall-status').style.background = 'linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%)';
+                    document.getElementById('overall-status').style.background = '#f59e0b';
                 } else {
                     overallIcon.textContent = '❌';
                     overallTitle.textContent = '服務全部離線';
                     overallDesc.textContent = '請檢查服務狀態';
-                    document.getElementById('overall-status').style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+                    document.getElementById('overall-status').style.background = '#ef4444';
                 }
 
                 onlineCount.textContent = online;
@@ -3436,7 +3897,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                 overallIcon.textContent = '❌';
                 overallTitle.textContent = '無法連接服務';
                 overallDesc.textContent = error.message;
-                document.getElementById('overall-status').style.background = 'linear-gradient(135deg, #636e72 0%, #2d3436 100%)';
+                document.getElementById('overall-status').style.background = '#64748b';
 
                 dashboard.innerHTML = `
                     <div class="monitor-card offline">
@@ -4541,6 +5002,77 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         let quickTestModels = [];
         let isTestingAll = false;
 
+        // Provider 引導資訊
+        const providerGuides = {
+            "llama.cpp": {
+                label: "本地部署",
+                badgeClass: "local",
+                color: "#10b981",
+                guide: "本地 llama.cpp 伺服器，無需申請 API Key",
+                endpoint: "http://192.168.31.156:21180/v1",
+                link: null,
+                linkText: null
+            },
+            "DeepSeek": {
+                label: "DeepSeek 雲端",
+                badgeClass: "deepseek",
+                color: "#3b82f6",
+                guide: "需要 DeepSeek API Key",
+                endpoint: "https://api.deepseek.com/v1",
+                link: "https://platform.deepseek.com/api_keys",
+                linkText: "前往 DeepSeek 申請 API Key"
+            },
+            "SiliconFlow": {
+                label: "SiliconFlow 雲端",
+                badgeClass: "siliconflow",
+                color: "#8b5cf6",
+                guide: "需要 SiliconFlow API Key",
+                endpoint: "https://api.siliconflow.cn/v1",
+                link: "https://cloud.siliconflow.cn/account/ak",
+                linkText: "前往 SiliconFlow 申請 API Key"
+            }
+        };
+
+        function getProviderGuide(provider) {
+            return providerGuides[provider] || {
+                label: provider || "未知",
+                badgeClass: "local",
+                color: "#64748b",
+                guide: "",
+                endpoint: "",
+                link: null,
+                linkText: null
+            };
+        }
+
+        function toggleProviderGroup(provider) {
+            const header = document.querySelector(`.provider-group-header[data-provider="${provider}"]`);
+            const body = document.querySelector(`.provider-group-body[data-provider="${provider}"]`);
+            if (header && body) {
+                header.classList.toggle('collapsed');
+                body.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleApiGuide(index) {
+            const guide = document.getElementById(`api-guide-${index}`);
+            if (guide) {
+                guide.classList.toggle('show');
+            }
+        }
+
+        function copyEndpoint(text, el) {
+            navigator.clipboard.writeText(text).then(() => {
+                const original = el.textContent;
+                el.textContent = '已複製!';
+                el.style.background = '#d1fae5';
+                setTimeout(() => {
+                    el.textContent = text;
+                    el.style.background = '';
+                }, 1500);
+            });
+        }
+
         // 初始化快速測試模型列表
         document.addEventListener('DOMContentLoaded', function() {
             loadQuickTestModels();
@@ -4564,23 +5096,87 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                     return;
                 }
 
-                grid.innerHTML = quickTestModels.map((model, index) => `
-                    <div class="model-test-card" id="model-card-${index}" data-model="${model.id}">
-                        <div class="model-card-header">
-                            <div class="model-card-name">${model.id}</div>
-                            <span class="model-card-status idle" id="status-${index}">待測試</span>
+                // 按 provider 分組，保留原始 index
+                const groups = {};
+                quickTestModels.forEach((model, index) => {
+                    const provider = model.owned_by || '未知';
+                    if (!groups[provider]) {
+                        groups[provider] = [];
+                    }
+                    groups[provider].push({ model, index });
+                });
+
+                // 定義排序順序
+                const providerOrder = ['llama.cpp', 'DeepSeek', 'SiliconFlow'];
+                const sortedProviders = Object.keys(groups).sort((a, b) => {
+                    const ia = providerOrder.indexOf(a);
+                    const ib = providerOrder.indexOf(b);
+                    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                });
+
+                grid.innerHTML = sortedProviders.map(provider => {
+                    const guide = getProviderGuide(provider);
+                    const models = groups[provider];
+
+                    const cardsHtml = models.map(({ model, index }) => {
+                        const apiGuideHtml = `
+                            <div class="model-card-api-guide" id="api-guide-${index}">
+                                <div class="api-guide-row">
+                                    <span class="api-guide-label">📡 API Endpoint:</span>
+                                    <span class="api-guide-endpoint" onclick="copyEndpoint('${guide.endpoint}', this)">${guide.endpoint}</span>
+                                </div>
+                                <div class="api-guide-row">
+                                    <span class="api-guide-label">💡</span>
+                                    <span>${guide.guide}</span>
+                                </div>
+                                ${guide.link ? `
+                                <div class="api-guide-row">
+                                    <a class="api-guide-link" href="${guide.link}" target="_blank" rel="noopener noreferrer">
+                                        🔑 ${guide.linkText} →
+                                    </a>
+                                </div>` : ''}
+                            </div>
+                        `;
+
+                        return `
+                            <div class="model-test-card" id="model-card-${index}" data-model="${model.id}">
+                                <div class="model-card-header">
+                                    <div class="model-card-name">${model.id}</div>
+                                    <span class="model-card-status idle" id="status-${index}">待測試</span>
+                                </div>
+                                <div class="model-card-info">
+                                    來源: <span class="provider-badge ${guide.badgeClass}">${guide.label}</span>
+                                </div>
+                                <div class="model-card-response" id="response-${index}"></div>
+                                <div class="model-card-actions">
+                                    <button class="model-card-btn test" id="btn-${index}" onclick="testSingleModel(${index})">
+                                        測試此模型
+                                    </button>
+                                    <button class="model-card-btn api-guide" onclick="toggleApiGuide(${index})">
+                                        API 使用說明
+                                    </button>
+                                </div>
+                                ${apiGuideHtml}
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="provider-group">
+                            <div class="provider-group-header" data-provider="${provider}" onclick="toggleProviderGroup('${provider}')">
+                                <span class="toggle-icon">▼</span>
+                                <span class="provider-badge ${guide.badgeClass}">${guide.label}</span>
+                                <span class="provider-group-title">${provider}</span>
+                                <span class="provider-model-count">${models.length} 個模型</span>
+                            </div>
+                            <div class="provider-group-body" data-provider="${provider}">
+                                <div class="model-test-grid">
+                                    ${cardsHtml}
+                                </div>
+                            </div>
                         </div>
-                        <div class="model-card-info">
-                            ${model.owned_by ? `來源: ${model.owned_by}` : ''}
-                        </div>
-                        <div class="model-card-response" id="response-${index}"></div>
-                        <div class="model-card-actions">
-                            <button class="model-card-btn test" id="btn-${index}" onclick="testSingleModel(${index})">
-                                測試此模型
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
 
             } catch (error) {
                 console.error('載入模型失敗:', error);
@@ -5483,20 +6079,26 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
             // 切換設定區塊顯示
             const ppocrvSettings = document.getElementById('ppocrv5-settings');
+            const deepseekSettings = document.getElementById('deepseek-settings');
             const visionSettings = document.getElementById('vision-settings');
-            const languageGroup = ppocrvSettings.nextElementSibling; // 語言選擇區塊
-            const formatGroup = languageGroup.nextElementSibling; // 輸出格式區塊
+            const languageGroup = document.querySelector('#ppocrv5-settings').parentElement.querySelector('.ocr-setting-group:nth-of-type(3)'); // 語言選擇區塊
+            const formatGroup = document.querySelector('#ppocrv5-settings').parentElement.querySelector('.ocr-setting-group:nth-of-type(4)'); // 輸出格式區塊
+
+            // 隱藏所有設定
+            ppocrvSettings.style.display = 'none';
+            deepseekSettings.style.display = 'none';
+            visionSettings.style.display = 'none';
+            if (languageGroup) languageGroup.style.display = 'none';
+            if (formatGroup) formatGroup.style.display = 'none';
 
             if (method === 'ppocrv5') {
                 ppocrvSettings.style.display = 'block';
-                visionSettings.style.display = 'none';
                 if (languageGroup) languageGroup.style.display = 'block';
                 if (formatGroup) formatGroup.style.display = 'block';
-            } else {
-                ppocrvSettings.style.display = 'none';
+            } else if (method === 'deepseek') {
+                deepseekSettings.style.display = 'block';
+            } else if (method === 'vision') {
                 visionSettings.style.display = 'block';
-                if (languageGroup) languageGroup.style.display = 'none';
-                if (formatGroup) formatGroup.style.display = 'none';
             }
         }
 
@@ -5517,8 +6119,11 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         // 處理 OCR 檔案
         function processOcrFile(file) {
             // 驗證檔案類型
-            if (!file.type.startsWith('image/')) {
-                alert('請選擇圖片檔案（JPG、PNG、GIF、WebP、BMP）');
+            const isImage = file.type.startsWith('image/');
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+            if (!isImage && !isPdf) {
+                alert('請選擇圖片檔案（JPG、PNG、GIF、WebP、BMP）或 PDF 檔案');
                 return;
             }
 
@@ -5530,21 +6135,23 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
             ocrUploadedFile = file;
 
-            // 顯示預覽
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const preview = document.getElementById('ocr-preview');
-                const placeholder = document.getElementById('ocr-upload-placeholder');
-                const uploadArea = document.getElementById('ocr-upload-area');
-                const fileInfo = document.getElementById('ocr-file-info');
+            const preview = document.getElementById('ocr-preview');
+            const pdfPreview = document.getElementById('ocr-pdf-preview');
+            const placeholder = document.getElementById('ocr-upload-placeholder');
+            const uploadArea = document.getElementById('ocr-upload-area');
+            const fileInfo = document.getElementById('ocr-file-info');
 
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                placeholder.style.display = 'none';
-                uploadArea.classList.add('has-file');
+            // 隱藏所有預覽
+            preview.style.display = 'none';
+            pdfPreview.style.display = 'none';
+            placeholder.style.display = 'none';
+            uploadArea.classList.add('has-file');
 
-                // 保存 base64 給視覺模型使用
-                ocrImageBase64 = e.target.result;
+            if (isPdf) {
+                // PDF 檔案預覽
+                pdfPreview.style.display = 'block';
+                document.getElementById('ocr-pdf-name').textContent = file.name;
+                ocrImageBase64 = null; // PDF 不使用 base64 預覽
 
                 // 顯示檔案資訊
                 document.getElementById('ocr-file-name').textContent = file.name;
@@ -5553,8 +6160,26 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
                 // 啟用辨識按鈕
                 document.getElementById('ocr-start-btn').disabled = false;
-            };
-            reader.readAsDataURL(file);
+            } else {
+                // 圖片檔案預覽
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+
+                    // 保存 base64 給視覺模型使用
+                    ocrImageBase64 = e.target.result;
+
+                    // 顯示檔案資訊
+                    document.getElementById('ocr-file-name').textContent = file.name;
+                    document.getElementById('ocr-file-size').textContent = formatFileSize(file.size);
+                    fileInfo.style.display = 'block';
+
+                    // 啟用辨識按鈕
+                    document.getElementById('ocr-start-btn').disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
         }
 
         // 清除 OCR 檔案
@@ -5562,6 +6187,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             ocrUploadedFile = null;
             ocrImageBase64 = null;
             const preview = document.getElementById('ocr-preview');
+            const pdfPreview = document.getElementById('ocr-pdf-preview');
             const placeholder = document.getElementById('ocr-upload-placeholder');
             const uploadArea = document.getElementById('ocr-upload-area');
             const fileInfo = document.getElementById('ocr-file-info');
@@ -5569,6 +6195,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
             preview.style.display = 'none';
             preview.src = '';
+            pdfPreview.style.display = 'none';
             placeholder.style.display = 'flex';
             uploadArea.classList.remove('has-file');
             fileInfo.style.display = 'none';
@@ -5602,6 +6229,9 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
                 if (ocrMethodMode === 'vision') {
                     // 使用視覺模型 (LLaVA)
                     result = await performVisionOcr(startTime);
+                } else if (ocrMethodMode === 'deepseek') {
+                    // 使用 DeepSeek OCR
+                    result = await performDeepSeekOcr(startTime);
                 } else {
                     // 使用傳統 PP-OCR
                     result = await performPpOcr(startTime);
@@ -5644,8 +6274,41 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'OCR 辨識失敗');
+                const text = await response.text();
+                try {
+                    const error = JSON.parse(text);
+                    throw new Error(error.detail || 'OCR 辨識失敗');
+                } catch (e) {
+                    throw new Error(`OCR 辨識失敗 (${response.status}): ${text.substring(0, 100)}`);
+                }
+            }
+
+            return await response.json();
+        }
+
+        // 使用 DeepSeek OCR 辨識
+        async function performDeepSeekOcr(startTime) {
+            const language = document.getElementById('deepseek-language').value;
+
+            const formData = new FormData();
+            formData.append('file', ocrUploadedFile);
+            formData.append('model', 'deepseek-ocr');
+            formData.append('output_format', 'all');
+            formData.append('language', language);
+
+            const response = await authFetch(`${API_URL}/v1/ocr/recognize`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const error = JSON.parse(text);
+                    throw new Error(error.detail || 'DeepSeek OCR 辨識失敗');
+                } catch (e) {
+                    throw new Error(`DeepSeek OCR 辨識失敗 (${response.status}): ${text.substring(0, 100)}`);
+                }
             }
 
             return await response.json();
@@ -5844,9 +6507,11 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             bottom: 0;
             right: 0;
             padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.95);
+            background: white;
             border-top-left-radius: 10px;
-            box-shadow: -2px -2px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #e2e8f0;
+            border-bottom: none;
+            border-right: none;
             font-size: 12px;
             color: #666;
             z-index: 1000;
@@ -5910,7 +6575,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 2px solid #e2e8f0;
         }
 
         .md-table th, .md-table td {
@@ -5920,7 +6585,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .md-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             font-weight: 600;
         }
@@ -5950,12 +6615,12 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .image-upload-area {
-            border: 2px dashed #667eea;
+            border: 2px dashed #4f46e5;
             border-radius: 10px;
             padding: 30px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             background: white;
             min-height: 150px;
             display: flex;
@@ -5964,8 +6629,8 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .image-upload-area:hover {
-            border-color: #764ba2;
-            background: #f0f4ff;
+            border-color: #4338ca;
+            background: #f1f5f9;
         }
 
         .image-upload-area.dragover {
@@ -5994,7 +6659,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             max-width: 100%;
             max-height: 300px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            border: 2px solid #e2e8f0;
         }
 
         /* OCR 樣式 */
@@ -6014,12 +6679,12 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         .ocr-section {
             background: white;
             border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 2px solid #e2e8f0;
             overflow: hidden;
         }
 
         .ocr-section-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             padding: 20px 24px;
             display: flex;
@@ -6028,11 +6693,11 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-section-header.upload {
-            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            background: #10b981;
         }
 
         .ocr-section-header.settings {
-            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            background: #7c3aed;
         }
 
         .ocr-section-icon {
@@ -6049,13 +6714,13 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-upload-area {
-            border: 3px dashed #e0e5ec;
+            border: 3px dashed #cbd5e1;
             border-radius: 16px;
             padding: 40px 30px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
-            background: linear-gradient(145deg, #f8f9fa, #ffffff);
+            transition: all 0.2s ease;
+            background: #f8fafc;
             min-height: 280px;
             display: flex;
             flex-direction: column;
@@ -6065,22 +6730,20 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-upload-area:hover {
-            border-color: #667eea;
-            background: linear-gradient(145deg, #f0f4ff, #ffffff);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+            border-color: #4f46e5;
+            background: #f1f5f9;
         }
 
         .ocr-upload-area.dragover {
-            border-color: #00b894;
-            background: linear-gradient(145deg, #e8f8f5, #ffffff);
+            border-color: #10b981;
+            background: #ecfdf5;
             border-style: solid;
         }
 
         .ocr-upload-area.has-file {
             border-style: solid;
-            border-color: #00b894;
-            background: linear-gradient(145deg, #e8f8f5, #ffffff);
+            border-color: #10b981;
+            background: #ecfdf5;
         }
 
         .ocr-upload-icon {
@@ -6118,8 +6781,8 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
         .ocr-format-badge {
             padding: 4px 12px;
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
+            background: #eef2ff;
+            color: #4f46e5;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
@@ -6128,9 +6791,9 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         .ocr-file-info {
             margin-top: 20px;
             padding: 16px;
-            background: linear-gradient(135deg, #e8f8f5, #f0fff4);
+            background: #ecfdf5;
             border-radius: 12px;
-            border: 1px solid #00b894;
+            border: 2px solid #10b981;
         }
 
         .ocr-file-info-row {
@@ -6157,18 +6820,17 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         .ocr-remove-btn {
             margin-top: 12px;
             padding: 8px 20px;
-            background: linear-gradient(135deg, #ff7675, #d63031);
+            background: #ef4444;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: background 0.2s;
         }
 
         .ocr-remove-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(214, 48, 49, 0.3);
+            background: #dc2626;
         }
 
         /* 設定區塊 */
@@ -6208,16 +6870,15 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
         .ocr-select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: #4f46e5;
         }
 
         .ocr-model-desc-box {
             margin-top: 12px;
             padding: 12px 16px;
-            background: linear-gradient(135deg, #f8f9ff, #ffffff);
+            background: #f8fafc;
             border-radius: 10px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #4f46e5;
         }
 
         .ocr-model-desc-text {
@@ -6247,15 +6908,13 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-method-btn:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
-            transform: translateY(-2px);
+            border-color: #4f46e5;
+            background: #eef2ff;
         }
 
         .ocr-method-btn.active {
-            border-color: #667eea;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            border-color: #4f46e5;
+            background: #eef2ff;
         }
 
         .ocr-method-icon {
@@ -6290,8 +6949,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
         .ocr-prompt-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: #4f46e5;
         }
 
         .ocr-quick-prompts {
@@ -6325,16 +6983,15 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-quick-btn:hover {
-            background: #667eea;
-            border-color: #667eea;
+            background: #4f46e5;
+            border-color: #4f46e5;
             color: white;
-            transform: translateY(-1px);
         }
 
         .ocr-vision-model-info {
             margin-top: 16px;
             padding: 12px 16px;
-            background: linear-gradient(135deg, #f0e6ff, #e6f0ff);
+            background: #f5f3ff;
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -6344,7 +7001,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
 
         .ocr-vision-badge {
             padding: 6px 12px;
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            background: #7c3aed;
             color: white;
             border-radius: 20px;
             font-size: 13px;
@@ -6375,19 +7032,19 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-checkbox-item:hover {
-            background: #f0f4ff;
-            border-color: #667eea;
+            background: #eef2ff;
+            border-color: #4f46e5;
         }
 
         .ocr-checkbox-item.checked {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-            border-color: #667eea;
+            background: #eef2ff;
+            border-color: #4f46e5;
         }
 
         .ocr-checkbox-item input {
             width: 20px;
             height: 20px;
-            accent-color: #667eea;
+            accent-color: #4f46e5;
         }
 
         .ocr-checkbox-text {
@@ -6398,14 +7055,14 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         .ocr-start-btn {
             width: 100%;
             padding: 18px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             border: none;
             border-radius: 14px;
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -6414,14 +7071,13 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .ocr-start-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            background: #4338ca;
         }
 
         .ocr-start-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            background: linear-gradient(135deg, #b2bec3, #636e72);
+            background: #94a3b8;
         }
 
         .ocr-start-btn-icon {
@@ -6433,13 +7089,13 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             margin-top: 30px;
             background: white;
             border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 2px solid #e2e8f0;
             overflow: hidden;
         }
 
         .ocr-result-header {
             padding: 20px 24px;
-            background: linear-gradient(135deg, #2d3436 0%, #636e72 100%);
+            background: #334155;
             color: white;
             display: flex;
             justify-content: space-between;
@@ -6619,8 +7275,8 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .audio-upload-area:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
+            border-color: #4f46e5;
+            background: #f1f5f9;
         }
 
         .audio-upload-area.dragover {
@@ -6628,13 +7284,7 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             background: #e8f5e9;
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
-        }
+        /* Note: .btn-danger is defined earlier with flat style */
 
         /* Vision Model Notice */
         .vision-notice {
@@ -6642,8 +7292,8 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
             align-items: flex-start;
             gap: 15px;
             padding: 20px;
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
-            border: 1px solid #ffc107;
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
             border-radius: 10px;
             margin-bottom: 15px;
         }
@@ -6704,10 +7354,11 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .rec-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: #f8fafc;
             border-radius: 10px;
             padding: 15px;
-            border-left: 4px solid #667eea;
+            border: 2px solid #e2e8f0;
+            border-left: 4px solid #4f46e5;
         }
 
         .rec-card h4 {
@@ -6722,20 +7373,19 @@ curl https://ollama_pjapi.theaken.com/v1/chat/completions \
         }
 
         .rec-card strong {
-            color: #667eea;
+            color: #4f46e5;
         }
 
         /* AI Response Container */
         .ai-response-container {
             margin-top: 20px;
-            border: 1px solid #e0e0e0;
+            border: 2px solid #e2e8f0;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         .ai-response-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             padding: 15px 20px;
             display: flex;

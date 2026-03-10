@@ -4,10 +4,9 @@ from typing import List, Dict
 
 # Ollama endpoints
 ENDPOINTS = [
-    "http://192.168.0.6:21180/v1",
-    "http://192.168.0.6:21181/v1",
-    "http://192.168.0.6:21182/v1",
-    "http://192.168.0.6:21183/v1",
+    "http://192.168.31.156:21180/v1",
+    "http://192.168.31.156:21182/v1",
+    "http://192.168.31.156:21183/v1",
 ]
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="

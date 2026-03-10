@@ -6,3 +6,5 @@ requests
 aiomysql
 pymysql
 python-multipart
+PyMuPDF
+Pillow

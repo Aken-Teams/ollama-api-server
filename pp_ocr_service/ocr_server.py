@@ -123,19 +123,25 @@ async def ocr_recognize(
         # 執行辨識
         result = ocr.ocr(img_array)
 
-        # 解析結果
+        # 解析結果 - 支援新舊版本 PaddleOCR 格式
         text_lines = []
         total_confidence = 0
         box_count = 0
 
-        if result and result[0]:
-            for line in result[0]:
-                if line and len(line) >= 2:
-                    box = line[0]  # 文字框座標
-                    text_info = line[1]  # (文字, 信心度)
-                    if text_info and len(text_info) >= 2:
-                        text = text_info[0]
-                        confidence = text_info[1]
+        if result:
+            # 新版 PaddleOCR 格式 (v5+): 返回字典列表
+            if isinstance(result, list) and len(result) > 0:
+                first_item = result[0]
+
+                # 新格式: [{'rec_texts': [...], 'rec_scores': [...], ...}]
+                if isinstance(first_item, dict) and 'rec_texts' in first_item:
+                    rec_texts = first_item.get('rec_texts', [])
+                    rec_scores = first_item.get('rec_scores', [])
+                    rec_polys = first_item.get('rec_polys', [])
+
+                    for i, text in enumerate(rec_texts):
+                        confidence = rec_scores[i] if i < len(rec_scores) else 0
+                        box = rec_polys[i].tolist() if i < len(rec_polys) else []
                         text_lines.append({
                             "text": text,
                             "confidence": float(confidence),
@@ -143,6 +149,23 @@ async def ocr_recognize(
                         })
                         total_confidence += confidence
                         box_count += 1
+
+                # 舊格式: [[box, (text, confidence)], ...]
+                elif isinstance(first_item, (list, tuple)):
+                    for line in result[0] if result[0] else []:
+                        if line and len(line) >= 2:
+                            box = line[0]  # 文字框座標
+                            text_info = line[1]  # (文字, 信心度)
+                            if text_info and len(text_info) >= 2:
+                                text = text_info[0]
+                                confidence = text_info[1]
+                                text_lines.append({
+                                    "text": text,
+                                    "confidence": float(confidence),
+                                    "box": box if isinstance(box, list) else box.tolist() if hasattr(box, 'tolist') else []
+                                })
+                                total_confidence += confidence
+                                box_count += 1
 
         # 組合文字
         full_text = "\n".join([item["text"] for item in text_lines])
@@ -205,21 +228,37 @@ async def ocr_recognize_base64(
         img_array = np.array(image)
         result = ocr.ocr(img_array)
 
-        # 解析結果
+        # 解析結果 - 支援新舊版本 PaddleOCR 格式
         text_lines = []
         total_confidence = 0
         box_count = 0
 
-        if result and result[0]:
-            for line in result[0]:
-                if line and len(line) >= 2:
-                    text_info = line[1]
-                    if text_info and len(text_info) >= 2:
-                        text = text_info[0]
-                        confidence = text_info[1]
+        if result:
+            if isinstance(result, list) and len(result) > 0:
+                first_item = result[0]
+
+                # 新格式: [{'rec_texts': [...], 'rec_scores': [...], ...}]
+                if isinstance(first_item, dict) and 'rec_texts' in first_item:
+                    rec_texts = first_item.get('rec_texts', [])
+                    rec_scores = first_item.get('rec_scores', [])
+
+                    for i, text in enumerate(rec_texts):
+                        confidence = rec_scores[i] if i < len(rec_scores) else 0
                         text_lines.append(text)
                         total_confidence += confidence
                         box_count += 1
+
+                # 舊格式: [[box, (text, confidence)], ...]
+                elif isinstance(first_item, (list, tuple)):
+                    for line in result[0] if result[0] else []:
+                        if line and len(line) >= 2:
+                            text_info = line[1]
+                            if text_info and len(text_info) >= 2:
+                                text = text_info[0]
+                                confidence = text_info[1]
+                                text_lines.append(text)
+                                total_confidence += confidence
+                                box_count += 1
 
         full_text = "\n".join(text_lines)
         avg_confidence = total_confidence / box_count if box_count > 0 else 0
