@@ -96,8 +96,12 @@ function renderDailyBarChart(containerId, data) {
         allDates.push([key, data[key] || 0]);
     }
 
-    const maxVal = Math.max(...allDates.map(([, v]) => v), 1);
-    const w = 600, h = 240, padLeft = 30, padBottom = 20, padTop = 5;
+    const rawMax = Math.max(...allDates.map(([, v]) => v), 1);
+    // Y 軸上限取整到好看的數字（10, 20, 50, 100, 200, 500...）
+    const niceSteps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+    const step = niceSteps.find(s => s * 4 >= rawMax) || Math.ceil(rawMax / 4);
+    const maxVal = step * 4;
+    const w = 600, h = 240, padLeft = 35, padBottom = 20, padTop = 5;
     const barGap = 2;
     const barW = (w - padLeft - 10) / days - barGap;
     const chartH = h - padBottom - padTop;

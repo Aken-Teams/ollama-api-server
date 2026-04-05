@@ -580,31 +580,6 @@ async def record_conversation_to_db(model: str, messages: List[Dict], response_c
                      round(response_time_ms, 2), success, user_id, username)
                 )
 
-                # Update daily stats
-                error_increment = 0 if success else 1
-                await cursor.execute(
-                    """INSERT INTO ollama_daily_stats
-                       (date, total_requests, total_tokens_prompt, total_tokens_completion,
-                        errors_count, avg_response_time_ms)
-                       VALUES (%s, 1, %s, %s, %s, %s)
-                       ON DUPLICATE KEY UPDATE
-                       total_requests = total_requests + 1,
-                       total_tokens_prompt = total_tokens_prompt + %s,
-                       total_tokens_completion = total_tokens_completion + %s,
-                       errors_count = errors_count + %s,
-                       avg_response_time_ms = (avg_response_time_ms * (total_requests - 1) + %s) / total_requests""",
-                    (today, prompt_tokens, completion_tokens, error_increment, response_time_ms,
-                     prompt_tokens, completion_tokens, error_increment, response_time_ms)
-                )
-
-                # Update model stats
-                await cursor.execute(
-                    """INSERT INTO ollama_model_stats (date, model, request_count)
-                       VALUES (%s, %s, 1)
-                       ON DUPLICATE KEY UPDATE request_count = request_count + 1""",
-                    (today, model)
-                )
-
     except Exception as e:
         logger.error(f"Failed to record conversation to database: {e}")
 
@@ -2428,51 +2403,55 @@ async def clear_conversations(user: Dict = Depends(get_admin_user)):
 
 @app.get("/api/stats")
 async def get_stats(user: Dict = Depends(get_current_user)):
-    """Get usage statistics from MySQL"""
+    """Get usage statistics from ollama_conversations + api_keys"""
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
-                # Get summary stats
+                # Total requests from api_keys (authoritative cumulative count)
+                await cursor.execute(
+                    "SELECT COALESCE(SUM(request_count), 0) as total_requests FROM api_keys"
+                )
+                total_requests = int((await cursor.fetchone())["total_requests"])
+
+                # Summary from conversations
                 await cursor.execute(
                     """SELECT
-                       COALESCE(SUM(total_requests), 0) as total_requests,
-                       COALESCE(SUM(total_tokens_prompt), 0) as total_tokens_prompt,
-                       COALESCE(SUM(total_tokens_completion), 0) as total_tokens_completion,
-                       COALESCE(SUM(errors_count), 0) as errors_count,
-                       COALESCE(AVG(avg_response_time_ms), 0) as avg_response_time_ms
-                       FROM ollama_daily_stats"""
+                       COALESCE(SUM(prompt_tokens), 0) as total_tokens_prompt,
+                       COALESCE(SUM(completion_tokens), 0) as total_tokens_completion,
+                       COALESCE(SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END), 0) as errors_count,
+                       COALESCE(AVG(response_time_ms), 0) as avg_response_time_ms
+                       FROM ollama_conversations"""
                 )
                 summary = await cursor.fetchone()
-
-                total_requests = int(summary["total_requests"])
                 total_tokens_prompt = int(summary["total_tokens_prompt"])
                 total_tokens_completion = int(summary["total_tokens_completion"])
                 errors_count = int(summary["errors_count"])
                 avg_response_time = float(summary["avg_response_time_ms"])
 
-                # Get model usage
+                # Model usage from conversations
                 await cursor.execute(
-                    """SELECT model, SUM(request_count) as count
-                       FROM ollama_model_stats
+                    """SELECT model, COUNT(*) as count
+                       FROM ollama_conversations
                        GROUP BY model
                        ORDER BY count DESC"""
                 )
                 model_rows = await cursor.fetchall()
                 by_model = {row["model"]: int(row["count"]) for row in model_rows}
 
-                # Get daily stats (last 30 days)
+                # Daily stats (last 30 days) from conversations
                 await cursor.execute(
-                    """SELECT date, total_requests
-                       FROM ollama_daily_stats
-                       ORDER BY date DESC
-                       LIMIT 30"""
+                    """SELECT DATE(timestamp) as date, COUNT(*) as count
+                       FROM ollama_conversations
+                       WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                       GROUP BY DATE(timestamp)
+                       ORDER BY date"""
                 )
                 daily_rows = await cursor.fetchall()
-                by_date = {row["date"].strftime("%Y-%m-%d"): int(row["total_requests"])
-                           for row in reversed(daily_rows)}
+                by_date = {row["date"].strftime("%Y-%m-%d"): int(row["count"])
+                           for row in daily_rows}
 
                 return {
                     "summary": {
@@ -2487,7 +2466,6 @@ async def get_stats(user: Dict = Depends(get_current_user)):
                         "avg_response_time_ms": round(avg_response_time, 2)
                     },
                     "by_model": by_model,
-                    "by_hour": {},  # Not tracked in DB currently
                     "by_date": by_date
                 }
     except Exception as e:
