@@ -27,10 +27,23 @@ async function loadStats() {
         el = document.getElementById('stat-completion-tokens');
         if (el) el.textContent = formatNum(s.total_tokens_completion);
         el = document.getElementById('stat-errors');
+        if (el) el.textContent = s.errors_count > 0 ? s.errors_count + ' 錯誤' : '';
+        // 下方 Token 分布明細
+        el = document.getElementById('stat-prompt-tokens-detail');
+        if (el) el.textContent = formatNum(s.total_tokens_prompt);
+        el = document.getElementById('stat-completion-tokens-detail');
+        if (el) el.textContent = formatNum(s.total_tokens_completion);
+        el = document.getElementById('stat-errors-detail');
         if (el) el.textContent = s.errors_count.toLocaleString();
 
-        // 成功率環形圖
+        // 成功率
         renderDonutChart('success-rate-chart', s.success_rate);
+        const inlineRate = document.getElementById('stat-success-rate-inline');
+        if (inlineRate) {
+            const color = s.success_rate >= 99 ? '#10b981' : s.success_rate >= 95 ? '#f59e0b' : '#ef4444';
+            inlineRate.textContent = s.success_rate + '%';
+            inlineRate.style.color = color;
+        }
 
         // 每日趨勢長條圖 (SVG)
         renderDailyBarChart('daily-chart', data.by_date);
@@ -56,7 +69,7 @@ function renderDonutChart(containerId, rate) {
     const color = rate >= 99 ? '#10b981' : rate >= 95 ? '#f59e0b' : '#ef4444';
 
     container.innerHTML = `
-        <svg viewBox="0 0 100 100" style="width: 100%; max-width: 120px;">
+        <svg viewBox="0 0 100 100" style="width: 100%; max-width: 80px;">
             <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f3f4f6" stroke-width="${stroke}"/>
             <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
                 stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
@@ -67,29 +80,44 @@ function renderDonutChart(containerId, rate) {
         </svg>`;
 }
 
-// 每日趨勢長條圖 (SVG)
+// 每日趨勢長條圖 (SVG) — 固定顯示近 30 天，自適應高度 + tooltip
 function renderDailyBarChart(containerId, data) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    const entries = Object.entries(data);
-    if (entries.length === 0) { container.innerHTML = '<p style="color:#999;font-size:13px;">暫無數據</p>'; return; }
 
-    const maxVal = Math.max(...entries.map(([, v]) => v), 1);
-    const w = 600, h = 200, pad = 30, barGap = 2;
-    const barW = Math.max(4, (w - pad * 2) / entries.length - barGap);
-    const chartH = h - pad - 10;
+    // 產生近 30 天的完整日期列表
+    const days = 30;
+    const allDates = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+        allDates.push([key, data[key] || 0]);
+    }
 
-    let bars = '', labels = '';
-    entries.forEach(([label, value], i) => {
+    const maxVal = Math.max(...allDates.map(([, v]) => v), 1);
+    const w = 600, h = 240, padLeft = 30, padBottom = 20, padTop = 5;
+    const barGap = 2;
+    const barW = (w - padLeft - 10) / days - barGap;
+    const chartH = h - padBottom - padTop;
+
+    // 透明的 hover 區域 + 實際的 bar
+    let bars = '';
+    let labels = '';
+    allDates.forEach(([label, value], i) => {
         const barH = (value / maxVal) * chartH;
-        const x = pad + i * (barW + barGap);
-        const y = h - pad - barH;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="2" fill="#f59e0b" opacity="0.85">
-            <title>${label}: ${value.toLocaleString()} 次</title></rect>`;
-        // 只顯示部分日期標籤
-        if (i % Math.ceil(entries.length / 6) === 0) {
+        const x = padLeft + i * (barW + barGap);
+        const y = h - padBottom - barH;
+        const opacity = value > 0 ? '0.85' : '0.15';
+        // 實際長條
+        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, value > 0 ? 2 : 1)}" rx="1.5" fill="#f59e0b" opacity="${opacity}" class="chart-bar-rect" data-date="${label}" data-value="${value}"/>`;
+        // 透明 hover 區（整欄高度，方便觸發 tooltip）
+        bars += `<rect x="${x}" y="${padTop}" width="${barW}" height="${chartH}" fill="transparent" class="chart-bar-hover" data-date="${label}" data-value="${value}" data-bx="${x}" data-by="${y}"/>`;
+        // 每 5 天顯示日期標籤
+        if (i % 5 === 0 || i === days - 1) {
             const shortLabel = label.slice(5); // MM-DD
-            labels += `<text x="${x + barW / 2}" y="${h - 5}" text-anchor="middle" font-size="9" fill="#999">${shortLabel}</text>`;
+            labels += `<text x="${x + barW / 2}" y="${h - 4}" text-anchor="middle" font-size="8" fill="#bbb">${shortLabel}</text>`;
         }
     });
 
@@ -97,12 +125,48 @@ function renderDailyBarChart(containerId, data) {
     let yAxis = '';
     for (let i = 0; i <= 4; i++) {
         const yVal = Math.round(maxVal * i / 4);
-        const yPos = h - pad - (i / 4) * chartH;
-        yAxis += `<line x1="${pad - 5}" y1="${yPos}" x2="${w - 5}" y2="${yPos}" stroke="#f3f4f6" stroke-width="1"/>`;
-        yAxis += `<text x="${pad - 8}" y="${yPos + 3}" text-anchor="end" font-size="9" fill="#999">${formatNum(yVal)}</text>`;
+        const yPos = h - padBottom - (i / 4) * chartH;
+        yAxis += `<line x1="${padLeft - 5}" y1="${yPos}" x2="${w - 5}" y2="${yPos}" stroke="#f3f4f6" stroke-width="1"/>`;
+        yAxis += `<text x="${padLeft - 8}" y="${yPos + 3}" text-anchor="end" font-size="8" fill="#bbb">${formatNum(yVal)}</text>`;
     }
 
-    container.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;">${yAxis}${bars}${labels}</svg>`;
+    container.innerHTML = `
+        <div style="position:relative;width:100%;height:100%;">
+            <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">${yAxis}${bars}${labels}</svg>
+            <div id="chart-tooltip" style="display:none;position:absolute;pointer-events:none;background:#333;color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;white-space:nowrap;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15);"></div>
+        </div>`;
+
+    // Tooltip 事件
+    const tooltip = container.querySelector('#chart-tooltip');
+    const svg = container.querySelector('svg');
+    container.querySelectorAll('.chart-bar-hover').forEach(rect => {
+        rect.addEventListener('mouseenter', (e) => {
+            const date = rect.getAttribute('data-date');
+            const value = parseInt(rect.getAttribute('data-value'));
+            tooltip.textContent = date + '：' + value.toLocaleString() + ' 次';
+            tooltip.style.display = 'block';
+            // 高亮對應 bar
+            const bars = container.querySelectorAll(`.chart-bar-rect[data-date="${date}"]`);
+            bars.forEach(b => { b.setAttribute('opacity', '1'); b.setAttribute('fill', '#e88e00'); });
+        });
+        rect.addEventListener('mousemove', (e) => {
+            const containerRect = container.getBoundingClientRect();
+            let left = e.clientX - containerRect.left + 10;
+            let top = e.clientY - containerRect.top - 30;
+            // 避免超出右側
+            if (left + 120 > containerRect.width) left = left - 130;
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        });
+        rect.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+            const date = rect.getAttribute('data-date');
+            const value = parseInt(rect.getAttribute('data-value'));
+            const opacity = value > 0 ? '0.85' : '0.15';
+            const bars = container.querySelectorAll(`.chart-bar-rect[data-date="${date}"]`);
+            bars.forEach(b => { b.setAttribute('opacity', opacity); b.setAttribute('fill', '#f59e0b'); });
+        });
+    });
 }
 
 // 模型使用水平長條圖
@@ -112,21 +176,44 @@ function renderModelChart(containerId, data) {
     const entries = Object.entries(data).slice(0, 8); // Top 8
     if (entries.length === 0) { container.innerHTML = '<p style="color:#999;font-size:13px;">暫無數據</p>'; return; }
 
+    const total = entries.reduce((s, [, v]) => s + v, 0);
     const maxVal = Math.max(...entries.map(([, v]) => v), 1);
     const colors = ['#f59e0b', '#fb923c', '#fbbf24', '#f97316', '#fdba74', '#fcd34d', '#ea580c', '#fed7aa'];
 
-    container.innerHTML = entries.map(([model, count], i) => {
+    container.innerHTML = `<div style="position:relative;">` + entries.map(([model, count], i) => {
         const pct = (count / maxVal) * 100;
+        const pctTotal = ((count / total) * 100).toFixed(1);
         const shortName = model.length > 20 ? model.slice(0, 18) + '...' : model;
         return `
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;" title="${model}: ${count.toLocaleString()}">
+            <div class="model-bar-row" data-model="${model}" data-count="${count}" data-pct="${pctTotal}" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:default;">
                 <span style="font-size:12px;color:#666;width:120px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;">${shortName}</span>
                 <div style="flex:1;height:18px;background:#f3f4f6;border-radius:9px;overflow:hidden;">
-                    <div style="height:100%;width:${pct}%;background:${colors[i % colors.length]};border-radius:9px;transition:width 0.6s ease;"></div>
+                    <div class="model-bar-fill" style="height:100%;width:${pct}%;background:${colors[i % colors.length]};border-radius:9px;transition:width 0.6s ease;"></div>
                 </div>
                 <span style="font-size:11px;color:#999;width:50px;flex-shrink:0;">${formatNum(count)}</span>
             </div>`;
-    }).join('');
+    }).join('') + `<div class="chart-tip" style="display:none;position:absolute;pointer-events:none;background:#333;color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;white-space:nowrap;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15);"></div></div>`;
+
+    // Tooltip
+    const tip = container.querySelector('.chart-tip');
+    container.querySelectorAll('.model-bar-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            tip.textContent = row.dataset.model + '：' + parseInt(row.dataset.count).toLocaleString() + ' 次（' + row.dataset.pct + '%）';
+            tip.style.display = 'block';
+            row.querySelector('.model-bar-fill').style.filter = 'brightness(0.85)';
+        });
+        row.addEventListener('mousemove', (e) => {
+            const cr = container.getBoundingClientRect();
+            let left = e.clientX - cr.left + 12;
+            if (left + 160 > cr.clientWidth) left = left - 180;
+            tip.style.left = left + 'px';
+            tip.style.top = (e.clientY - cr.top - 28) + 'px';
+        });
+        row.addEventListener('mouseleave', () => {
+            tip.style.display = 'none';
+            row.querySelector('.model-bar-fill').style.filter = '';
+        });
+    });
 }
 
 // Token 分布圓餅圖
@@ -151,38 +238,53 @@ function renderTokenPieChart(containerId, prompt, completion) {
     const compPath = angle <= 0 ? `M ${cx},${cy - r} A ${r},${r} 0 1,1 ${cx - 0.01},${cy - r}` :
         `M ${x},${y} A ${r},${r} 0 ${1 - largeArc},1 ${cx},${cy - r} L ${cx},${cy} Z`;
 
+    const promptNum = prompt.toLocaleString();
+    const compNum = completion.toLocaleString();
+    const totalNum = total.toLocaleString();
+
     container.innerHTML = `
-        <div style="display:flex;align-items:center;gap:20px;">
-            <svg viewBox="0 0 100 100" style="width:100px;height:100px;flex-shrink:0;">
-                <path d="${promptPath}" fill="#f59e0b"/>
-                <path d="${compPath}" fill="#fcd34d"/>
-                <circle cx="${cx}" cy="${cy}" r="22" fill="white"/>
+        <div style="display:flex;align-items:center;gap:16px;overflow:hidden;position:relative;">
+            <svg viewBox="0 0 100 100" style="width:90px;min-width:90px;height:90px;">
+                <path d="${promptPath}" fill="#f59e0b" class="pie-slice" data-tip="Prompt：${promptNum} tokens（${(promptPct * 100).toFixed(1)}%）" style="cursor:default;"/>
+                <path d="${compPath}" fill="#fcd34d" class="pie-slice" data-tip="Completion：${compNum} tokens（${((1 - promptPct) * 100).toFixed(1)}%）" style="cursor:default;"/>
+                <circle cx="${cx}" cy="${cy}" r="22" fill="white" style="pointer-events:none;"/>
             </svg>
-            <div style="font-size:13px;">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                    <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
-                    Prompt <strong style="margin-left:auto;">${formatNum(prompt)}</strong>
-                    <span style="color:#999;font-size:11px;">(${(promptPct * 100).toFixed(1)}%)</span>
+            <div style="font-size:12px;min-width:0;overflow:hidden;">
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
+                    <span style="color:#666;">Prompt</span>
+                    <strong>${formatNum(prompt)}</strong>
+                    <span style="color:#999;font-size:10px;">(${(promptPct * 100).toFixed(1)}%)</span>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="width:10px;height:10px;border-radius:50%;background:#fcd34d;display:inline-block;"></span>
-                    Completion <strong style="margin-left:auto;">${formatNum(completion)}</strong>
-                    <span style="color:#999;font-size:11px;">(${((1 - promptPct) * 100).toFixed(1)}%)</span>
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#fcd34d;flex-shrink:0;"></span>
+                    <span style="color:#666;">Comp.</span>
+                    <strong>${formatNum(completion)}</strong>
+                    <span style="color:#999;font-size:10px;">(${((1 - promptPct) * 100).toFixed(1)}%)</span>
                 </div>
+                <div style="margin-top:4px;font-size:10px;color:#bbb;">共 ${formatNum(total)} tokens</div>
             </div>
+            <div class="pie-tip" style="display:none;position:absolute;pointer-events:none;background:#333;color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;white-space:nowrap;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15);"></div>
         </div>`;
-}
 
-// 重置統計
-async function resetStats() {
-    if (!confirm('確定要重置所有統計數據嗎？此操作無法復原。')) return;
-
-    try {
-        await authFetch(`${API_URL}/api/stats`, { method: 'DELETE' });
-        loadStats();
-    } catch (error) {
-        alert('重置失敗: ' + error.message);
-    }
+    // Tooltip for pie slices
+    const tip = container.querySelector('.pie-tip');
+    container.querySelectorAll('.pie-slice').forEach(slice => {
+        slice.addEventListener('mouseenter', () => {
+            tip.textContent = slice.dataset.tip;
+            tip.style.display = 'block';
+            slice.style.opacity = '0.75';
+        });
+        slice.addEventListener('mousemove', (e) => {
+            const cr = container.getBoundingClientRect();
+            tip.style.left = (e.clientX - cr.left + 12) + 'px';
+            tip.style.top = (e.clientY - cr.top - 28) + 'px';
+        });
+        slice.addEventListener('mouseleave', () => {
+            tip.style.display = 'none';
+            slice.style.opacity = '';
+        });
+    });
 }
 
 // 載入對話紀錄

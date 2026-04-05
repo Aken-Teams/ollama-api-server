@@ -2495,23 +2495,6 @@ async def get_stats(user: Dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/stats")
-async def reset_stats(user: Dict = Depends(get_admin_user)):
-    """Reset all usage statistics in MySQL (admin only)"""
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
-    try:
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute("DELETE FROM ollama_daily_stats")
-                await cursor.execute("DELETE FROM ollama_model_stats")
-                return {"message": "Statistics reset successfully"}
-    except Exception as e:
-        logger.error(f"Failed to reset stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 # ===== API Key Management Endpoints =====
 
 class CreateApiKeyRequest(BaseModel):

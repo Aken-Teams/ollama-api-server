@@ -79,7 +79,11 @@ const serviceConfig = {
     'DeepSeek-OCR': { icon: '\u{1F52E}', type: 'deepseek-ocr', name: 'DeepSeek OCR', desc: 'GPU 加速 OCR' },
 };
 
-// Initialization - only check auth on load, data loading happens in showMainContent()
+// Initialization - hide login immediately if session exists, then verify async
 window.addEventListener('load', () => {
+    if (isAuthenticated && currentApiKey) {
+        document.getElementById('login-overlay').classList.add('hidden');
+        document.getElementById('main-content').classList.add('visible');
+    }
     checkAuth();
 });

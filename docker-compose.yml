@@ -11,6 +11,8 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./static:/app/static
+      - ./ollama_api_server.py:/app/ollama_api_server.py
+      - ./ocr_proxy_server.py:/app/ocr_proxy_server.py
     depends_on:
       - pp-ocr-service
     restart: unless-stopped
