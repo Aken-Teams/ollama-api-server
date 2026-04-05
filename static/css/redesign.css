@@ -192,7 +192,8 @@ body {
 }
 
 /* Old container override */
-.main-content > .container {
+.main-content > .container,
+.content-area > .container {
     display: contents !important;
     max-width: none !important;
     background: none !important;
@@ -345,7 +346,7 @@ body {
 /* Content sections */
 .content-area .content {
     display: none !important;
-    padding: 0 !important;
+    padding: 24px !important;
 }
 .content-area .content.active {
     display: block !important;

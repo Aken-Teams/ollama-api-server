@@ -57,39 +57,38 @@ async function checkStatusEnhanced() {
         const onlineEndpoints = endpoints.filter(([_, s]) => s === 'healthy');
         const offlineEndpoints = endpoints.filter(([_, s]) => s !== 'healthy');
 
-        function renderRow(endpoint, status) {
+        function renderOfflineRow(endpoint) {
             const config = serviceConfig[endpoint] || { icon: '🔌', name: endpoint, desc: '', model: '' };
-            const isOnline = status === 'healthy';
-            const dotColor = isOnline ? '#10b981' : '#ef4444';
-            const labelColor = isOnline ? '#10b981' : '#ef4444';
-            const labelBg = isOnline ? '#ecfdf5' : '#fef2f2';
-            const labelText = isOnline ? '運行中' : '離線';
-            const modelInfo = config.model ? `<span style="color: #999; font-size: 12px; margin-left: 8px;">${config.model}</span>` : '';
-
+            const modelInfo = config.model ? `<span style="color: #b0b0b0; font-size: 11px;"> · ${config.model}</span>` : '';
             return `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${dotColor}; flex-shrink: 0;"></span>
-                        <span style="font-size: 14px; font-weight: 500; color: #333;">${config.name}</span>
-                        ${modelInfo}
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0;"></span>
+                        <span style="font-size: 13px; font-weight: 500; color: #666;">${config.name}${modelInfo}</span>
                     </div>
-                    <span style="font-size: 12px; color: ${labelColor}; background: ${labelBg}; padding: 2px 10px; border-radius: 10px;">${labelText}</span>
                 </div>`;
         }
 
-        let html = `<div style="font-size: 13px; color: #999; margin-bottom: 12px;">${endpoints.length} 個端點</div>`;
+        // 摘要區塊
+        let html = '';
 
-        // 運行中列表
-        if (onlineEndpoints.length > 0) {
-            html += onlineEndpoints.map(([ep, st]) => renderRow(ep, st)).join('');
-        }
+        // 運行中摘要
+        html += `<div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #f0fdf4; border-radius: 10px; margin-bottom: 12px;">
+            <div style="width: 36px; height: 36px; background: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: #fff; font-size: 16px; font-weight: 700;">${onlineEndpoints.length}</span>
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: 600; color: #166534;">服務運行中</div>
+                <div style="font-size: 11px; color: #6b7280; margin-top: 1px;">${onlineEndpoints.map(([ep]) => (serviceConfig[ep] || {name: ep}).name).join('、')}</div>
+            </div>
+        </div>`;
 
-        // 離線列表（有間隔分隔）
+        // 離線列表（只有離線時才展開詳細）
         if (offlineEndpoints.length > 0) {
-            if (onlineEndpoints.length > 0) {
-                html += `<div style="margin: 12px 0; border-top: 2px solid #fecaca;"></div>`;
-            }
-            html += offlineEndpoints.map(([ep, st]) => renderRow(ep, st)).join('');
+            html += `<div style="padding: 14px 16px; background: #fef2f2; border-radius: 10px;">
+                <div style="font-size: 13px; font-weight: 600; color: #991b1b; margin-bottom: 8px;">${offlineEndpoints.length} 個服務離線</div>`;
+            html += offlineEndpoints.map(([ep]) => renderOfflineRow(ep)).join('');
+            html += `</div>`;
         }
 
         dashboard.innerHTML = html;
