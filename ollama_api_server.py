@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -26,19 +27,25 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
+# Auto-detect: use localhost for local execution, host.docker.internal for Docker
+_LLAMA_HOST = os.environ.get("LLAMA_HOST", "localhost")
+_OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "localhost")
+
 OLLAMA_ENDPOINTS = [
-    "http://192.168.31.156:21180/v1",
-    "http://192.168.31.156:21182/v1",
-    "http://192.168.31.156:21183/v1",
-    "http://192.168.31.156:21185/v1",
+    f"http://{_LLAMA_HOST}:21180/v1",
+    f"http://{_LLAMA_HOST}:21181/v1",
+    f"http://{_LLAMA_HOST}:21182/v1",
+    f"http://{_LLAMA_HOST}:21183/v1",
+    f"http://{_LLAMA_HOST}:21185/v1",
 ]
 
 # Model to endpoint mapping - each model routes to its specific llama.cpp server
 MODEL_ENDPOINT_MAP = {
-    "gpt-oss:120b": "http://192.168.31.156:21180/v1",
-    "Qwen3-Embedding-8B": "http://192.168.31.156:21182/v1",
-    "bge-reranker-v2-m3": "http://192.168.31.156:21183/v1",
-    "Qwen3.5:122b": "http://192.168.31.156:21185/v1",
+    "gpt-oss:120b": f"http://{_LLAMA_HOST}:21180/v1",
+    "gemma4:31b": f"http://{_LLAMA_HOST}:21181/v1",
+    "Qwen3-Embedding-8B": f"http://{_LLAMA_HOST}:21182/v1",
+    "bge-reranker-v2-m3": f"http://{_LLAMA_HOST}:21183/v1",
+    "Qwen3.5:122b": f"http://{_LLAMA_HOST}:21185/v1",
 }
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
@@ -47,81 +54,23 @@ API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 DEEPSEEK_MODELS = ["deepseek-chat", "deepseek-reasoner"]
-ENV_FILE_PATH = "/app/.env"  # Path to .env file in container
+ENV_FILE_PATH = os.environ.get("ENV_FILE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-# SiliconFlow API Configuration
-SILICONFLOW_API_KEY = os.environ.get("SILICONFLOW_API_KEY", "sk-pnbzvludlmtciiaqgiactcltbxxmmvtfekoadqjlphyvkslw")
-SILICONFLOW_BASE_URL = "https://api.siliconflow.cn/v1"
-SILICONFLOW_MODELS = [
-    # DeepSeek 系列
-    "deepseek-ai/DeepSeek-R1",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-    "deepseek-ai/DeepSeek-V3",
-    "deepseek-ai/DeepSeek-V3.1",
-    "deepseek-ai/DeepSeek-V3.2",
-    "deepseek-ai/deepseek-vl2",
-    "Pro/deepseek-ai/DeepSeek-R1",
-    "Pro/deepseek-ai/DeepSeek-V3",
-    # Qwen 通義千問系列
-    "Qwen/QwQ-32B",
-    "Qwen/Qwen2.5-7B-Instruct",
-    "Qwen/Qwen2.5-14B-Instruct",
-    "Qwen/Qwen2.5-32B-Instruct",
-    "Qwen/Qwen2.5-72B-Instruct",
-    "Qwen/Qwen2.5-72B-Instruct-128K",
-    "Qwen/Qwen2.5-Coder-32B-Instruct",
-    "Qwen/Qwen2.5-VL-7B-Instruct",
-    "Qwen/Qwen2.5-VL-32B-Instruct",
-    "Qwen/Qwen2.5-VL-72B-Instruct",
-    "Qwen/Qwen3-8B",
-    "Qwen/Qwen3-14B",
-    "Qwen/Qwen3-32B",
-    "Qwen/Qwen3-30B-A3B",
-    "Qwen/Qwen3-235B-A22B",
-    "Qwen/Qwen3-235B-A22B-Thinking-2507",
-    "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-    # GLM 智譜系列
-    "THUDM/GLM-4-9B-0414",
-    "THUDM/GLM-4-32B-0414",
-    "THUDM/GLM-Z1-9B-0414",
-    "THUDM/GLM-Z1-32B-0414",
-    "THUDM/GLM-4.1V-9B-Thinking",
-    "zai-org/GLM-4.5",
-    "zai-org/GLM-4.5-Air",
-    "zai-org/GLM-4.5V",
-    "zai-org/GLM-4.6",
-    "zai-org/GLM-4.6V",
-    "zai-org/GLM-4.7",
-    # Kimi 月之暗面系列
-    "moonshotai/Kimi-K2-Instruct",
-    "moonshotai/Kimi-K2-Thinking",
-    "moonshotai/Kimi-Dev-72B",
-    # 其他模型
-    "meta-llama/Meta-Llama-3.1-8B-Instruct",
-    "MiniMaxAI/MiniMax-M1-80k",
-    "MiniMaxAI/MiniMax-M2",
-    "tencent/Hunyuan-A13B-Instruct",
-    "baidu/ERNIE-4.5-300B-A47B",
-    "ByteDance-Seed/Seed-OSS-36B-Instruct",
-    "stepfun-ai/step3",
-]
-
-# Vision Model Configuration (Local Ollama via Docker host)
-QWEN_VL_BASE_URL = "http://host.docker.internal:11434/v1"
+# Vision Model Configuration (Local Ollama)
+QWEN_VL_BASE_URL = os.environ.get("QWEN_VL_BASE_URL", f"http://{_OLLAMA_HOST}:11434/v1")
 QWEN_VL_MODELS = ["llava:7b"]
 
 # Local Ollama Models (text models running on local Ollama)
-OLLAMA_LOCAL_BASE_URL = "http://host.docker.internal:11434/v1"
+OLLAMA_LOCAL_BASE_URL = os.environ.get("OLLAMA_LOCAL_BASE_URL", f"http://{_OLLAMA_HOST}:11434/v1")
 OLLAMA_LOCAL_MODELS = ["qwen2.5:72b"]
 
 # Speech-to-Text API Configuration
-SPEECH_API_BASE_URL = "http://192.168.31.156:8131"
+SPEECH_API_BASE_URL = os.environ.get("SPEECH_API_BASE_URL", f"http://{_OLLAMA_HOST}:8131")
 
 # OCR Configuration
-OCR_API_BASE_URL = "http://pp-ocr-service:8132"  # PP-OCR service in Docker network
-DEEPSEEK_OCR_BASE_URL = "http://192.168.0.191:8001"  # DeepSeek OCR service on external server
+_OCR_HOST = os.environ.get("OCR_HOST", "localhost")
+OCR_API_BASE_URL = os.environ.get("OCR_API_BASE_URL", f"http://{_OCR_HOST}:8132")
+DEEPSEEK_OCR_BASE_URL = os.environ.get("DEEPSEEK_OCR_BASE_URL", "http://192.168.0.191:8001")
 OCR_MODELS = {
     "llava-ocr": {
         "name": "LLaVA 7B OCR",
@@ -235,353 +184,11 @@ MODEL_INFO = {
         "best_for": "數學題解、邏輯推理、程式除錯、科學計算",
         "context_length": "64K tokens"
     },
-    # SiliconFlow Models - DeepSeek 系列
-    "deepseek-ai/DeepSeek-R1": {
-        "name": "DeepSeek R1 (SiliconFlow)",
-        "description": "DeepSeek 推理模型，強大的邏輯推理與思維鏈能力",
-        "features": ["深度推理", "思維鏈", "數學專精", "代碼生成"],
-        "best_for": "複雜推理、數學證明、程式設計、邏輯分析",
-        "context_length": "64K tokens"
-    },
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B": {
-        "name": "DeepSeek R1 Distill 7B (SiliconFlow)",
-        "description": "DeepSeek R1 蒸餾版 7B，輕量級推理模型",
-        "features": ["7B 參數", "快速推理", "低成本", "高性價比"],
-        "best_for": "快速推理、輕量部署、成本敏感場景",
-        "context_length": "32K tokens"
-    },
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B": {
-        "name": "DeepSeek R1 Distill 14B (SiliconFlow)",
-        "description": "DeepSeek R1 蒸餾版 14B，平衡的推理模型",
-        "features": ["14B 參數", "平衡性能", "推理能力", "成本效益"],
-        "best_for": "中等複雜度推理、一般分析任務",
-        "context_length": "32K tokens"
-    },
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B": {
-        "name": "DeepSeek R1 Distill 32B (SiliconFlow)",
-        "description": "DeepSeek R1 蒸餾版 32B，強大的推理模型",
-        "features": ["32B 參數", "強大推理", "高精度", "思維鏈"],
-        "best_for": "複雜推理、數學問題、程式設計",
-        "context_length": "32K tokens"
-    },
-    "deepseek-ai/DeepSeek-V3": {
-        "name": "DeepSeek V3 (SiliconFlow)",
-        "description": "DeepSeek 最新版通用模型，全面升級的對話能力",
-        "features": ["通用對話", "多語言", "長文本", "高效能"],
-        "best_for": "日常對話、文本生成、翻譯、摘要",
-        "context_length": "128K tokens"
-    },
-    "deepseek-ai/DeepSeek-V3.1": {
-        "name": "DeepSeek V3.1 (SiliconFlow)",
-        "description": "DeepSeek V3 升級版，更強的對話與理解能力",
-        "features": ["升級版本", "增強理解", "更穩定", "多場景"],
-        "best_for": "複雜對話、長文本處理、專業問答",
-        "context_length": "128K tokens"
-    },
-    "deepseek-ai/DeepSeek-V3.2": {
-        "name": "DeepSeek V3.2 (SiliconFlow)",
-        "description": "DeepSeek V3 最新版，頂尖的開源大語言模型",
-        "features": ["最新版本", "頂尖性能", "全面優化", "高效率"],
-        "best_for": "所有通用場景、高品質輸出需求",
-        "context_length": "128K tokens"
-    },
-    "deepseek-ai/deepseek-vl2": {
-        "name": "DeepSeek VL2 (SiliconFlow)",
-        "description": "DeepSeek 視覺語言模型，支援圖片理解",
-        "features": ["視覺理解", "圖片分析", "多模態", "文字識別"],
-        "best_for": "圖片描述、視覺問答、文檔分析、圖表理解",
-        "context_length": "32K tokens"
-    },
-    "Pro/deepseek-ai/DeepSeek-R1": {
-        "name": "DeepSeek R1 Pro (SiliconFlow)",
-        "description": "DeepSeek R1 專業版，更穩定的推理服務",
-        "features": ["專業版", "高可用", "穩定推理", "優先隊列"],
-        "best_for": "企業應用、生產環境、穩定需求、專業任務",
-        "context_length": "64K tokens"
-    },
-    "Pro/deepseek-ai/DeepSeek-V3": {
-        "name": "DeepSeek V3 Pro (SiliconFlow)",
-        "description": "DeepSeek V3 專業版，企業級穩定服務",
-        "features": ["專業版", "高可用", "穩定服務", "優先隊列"],
-        "best_for": "企業應用、生產環境、穩定需求、批量處理",
-        "context_length": "128K tokens"
-    },
-    # SiliconFlow Models - Qwen 通義千問系列
-    "Qwen/QwQ-32B": {
-        "name": "Qwen QwQ 32B (SiliconFlow)",
-        "description": "阿里通義千問推理模型，專注邏輯思考與問題解決",
-        "features": ["32B 參數", "推理專精", "中文優化", "思維鏈"],
-        "best_for": "邏輯推理、問題分析、決策支援、教育輔導",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-7B-Instruct": {
-        "name": "Qwen 2.5 7B (SiliconFlow)",
-        "description": "通義千問輕量指令模型，快速高效（免費）",
-        "features": ["7B 參數", "免費使用", "快速回應", "低延遲"],
-        "best_for": "快速問答、日常對話、輕量應用",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-14B-Instruct": {
-        "name": "Qwen 2.5 14B (SiliconFlow)",
-        "description": "通義千問中型指令模型，平衡性能與成本",
-        "features": ["14B 參數", "平衡性能", "多任務", "高性價比"],
-        "best_for": "一般問答、文本處理、內容生成",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-32B-Instruct": {
-        "name": "Qwen 2.5 32B (SiliconFlow)",
-        "description": "通義千問大型指令模型，強大的理解能力",
-        "features": ["32B 參數", "強大理解", "指令跟隨", "多語言"],
-        "best_for": "複雜問答、專業寫作、深度分析",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-72B-Instruct": {
-        "name": "Qwen 2.5 72B (SiliconFlow)",
-        "description": "通義千問大規模指令模型，頂尖中文理解能力",
-        "features": ["72B 參數", "指令跟隨", "中文頂尖", "多任務"],
-        "best_for": "中文寫作、複雜指令、知識問答、內容創作",
-        "context_length": "128K tokens"
-    },
-    "Qwen/Qwen2.5-72B-Instruct-128K": {
-        "name": "Qwen 2.5 72B 128K (SiliconFlow)",
-        "description": "通義千問超長上下文版本，支援 128K 上下文",
-        "features": ["72B 參數", "128K 上下文", "長文本", "文檔分析"],
-        "best_for": "長文檔處理、書籍分析、大量資料整合",
-        "context_length": "128K tokens"
-    },
-    "Qwen/Qwen2.5-Coder-32B-Instruct": {
-        "name": "Qwen 2.5 Coder 32B (SiliconFlow)",
-        "description": "通義千問程式碼專用模型，專為開發者設計",
-        "features": ["程式碼專精", "多語言程式", "代碼審查", "除錯輔助"],
-        "best_for": "程式開發、代碼補全、Bug 修復、程式碼解釋",
-        "context_length": "128K tokens"
-    },
-    "Qwen/Qwen2.5-VL-7B-Instruct": {
-        "name": "Qwen 2.5 VL 7B (SiliconFlow)",
-        "description": "通義千問視覺語言模型輕量版，支援圖片理解",
-        "features": ["7B 參數", "視覺理解", "圖片分析", "快速處理"],
-        "best_for": "簡單圖片問答、快速視覺分析",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-VL-32B-Instruct": {
-        "name": "Qwen 2.5 VL 32B (SiliconFlow)",
-        "description": "通義千問視覺語言模型中型版，強大的圖片理解",
-        "features": ["32B 參數", "視覺理解", "多模態", "高精度"],
-        "best_for": "圖片描述、視覺問答、圖表分析",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen2.5-VL-72B-Instruct": {
-        "name": "Qwen 2.5 VL 72B (SiliconFlow)",
-        "description": "通義千問視覺語言模型大型版，頂尖視覺理解",
-        "features": ["72B 參數", "頂尖視覺", "複雜分析", "多模態"],
-        "best_for": "複雜圖片分析、專業視覺任務、文檔OCR",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen3-8B": {
-        "name": "Qwen 3 8B (SiliconFlow)",
-        "description": "通義千問 3 代輕量版，新一代架構（免費）",
-        "features": ["8B 參數", "免費使用", "新架構", "快速"],
-        "best_for": "快速對話、輕量部署、一般問答",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen3-14B": {
-        "name": "Qwen 3 14B (SiliconFlow)",
-        "description": "通義千問 3 代中型版，平衡性能與效率",
-        "features": ["14B 參數", "新架構", "多任務", "高效率"],
-        "best_for": "一般對話、文本生成、知識問答",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen3-32B": {
-        "name": "Qwen 3 32B (SiliconFlow)",
-        "description": "通義千問 3 代大型版，強大的推理能力",
-        "features": ["32B 參數", "強推理", "新架構", "多場景"],
-        "best_for": "複雜推理、專業問答、內容創作",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen3-30B-A3B": {
-        "name": "Qwen 3 30B MoE (SiliconFlow)",
-        "description": "通義千問 3 代 MoE 架構，高效能低成本",
-        "features": ["MoE 架構", "30B 總參數", "高效率", "低成本"],
-        "best_for": "高性價比需求、大規模應用",
-        "context_length": "32K tokens"
-    },
-    "Qwen/Qwen3-235B-A22B": {
-        "name": "Qwen 3 235B (SiliconFlow)",
-        "description": "通義千問最強模型，2350 億參數的超大規模語言模型",
-        "features": ["235B 參數", "頂尖性能", "MoE 架構", "全能型"],
-        "best_for": "最複雜任務、研究分析、專業諮詢、深度創作",
-        "context_length": "128K tokens"
-    },
-    "Qwen/Qwen3-235B-A22B-Thinking-2507": {
-        "name": "Qwen 3 235B Thinking (SiliconFlow)",
-        "description": "通義千問 235B 思考版，強化推理與思維鏈",
-        "features": ["235B 參數", "深度思考", "推理增強", "思維鏈"],
-        "best_for": "複雜推理、數學問題、邏輯分析",
-        "context_length": "128K tokens"
-    },
-    "Qwen/Qwen3-Coder-480B-A35B-Instruct": {
-        "name": "Qwen 3 Coder 480B (SiliconFlow)",
-        "description": "通義千問最強程式碼模型，4800 億參數",
-        "features": ["480B 參數", "程式碼頂尖", "多語言", "MoE"],
-        "best_for": "複雜程式開發、架構設計、代碼審查",
-        "context_length": "128K tokens"
-    },
-    # SiliconFlow Models - GLM 智譜系列
-    "THUDM/GLM-4-9B-0414": {
-        "name": "GLM-4 9B (SiliconFlow)",
-        "description": "智譜 GLM-4 輕量版，高效能的中文對話模型",
-        "features": ["9B 參數", "快速回應", "中文優化", "低資源"],
-        "best_for": "快速對話、輕量部署、一般問答、日常使用",
-        "context_length": "128K tokens"
-    },
-    "THUDM/GLM-4-32B-0414": {
-        "name": "GLM-4 32B (SiliconFlow)",
-        "description": "智譜 GLM-4 大型版，強大的中文理解能力",
-        "features": ["32B 參數", "強理解", "中文優化", "多任務"],
-        "best_for": "複雜問答、專業寫作、深度分析",
-        "context_length": "128K tokens"
-    },
-    "THUDM/GLM-Z1-9B-0414": {
-        "name": "GLM-Z1 9B (SiliconFlow)",
-        "description": "智譜 GLM-Z1 推理版，專注邏輯推理",
-        "features": ["9B 參數", "推理專精", "思維鏈", "快速"],
-        "best_for": "快速推理、邏輯問題、數學計算",
-        "context_length": "128K tokens"
-    },
-    "THUDM/GLM-Z1-32B-0414": {
-        "name": "GLM-Z1 32B (SiliconFlow)",
-        "description": "智譜 GLM-Z1 推理版大型，強大推理能力",
-        "features": ["32B 參數", "深度推理", "思維鏈", "高精度"],
-        "best_for": "複雜推理、數學證明、專業分析",
-        "context_length": "128K tokens"
-    },
-    "THUDM/GLM-4.1V-9B-Thinking": {
-        "name": "GLM-4.1V 9B Thinking (SiliconFlow)",
-        "description": "智譜視覺思考模型，支援圖片理解與推理",
-        "features": ["視覺理解", "思維鏈", "圖片分析", "推理"],
-        "best_for": "圖片推理、視覺問答、複雜視覺任務",
-        "context_length": "32K tokens"
-    },
-    "zai-org/GLM-4.5": {
-        "name": "GLM-4.5 (SiliconFlow)",
-        "description": "智譜 GLM-4.5 最新版，全面升級的大語言模型",
-        "features": ["最新版本", "全面升級", "高性能", "多場景"],
-        "best_for": "通用對話、專業問答、內容創作",
-        "context_length": "128K tokens"
-    },
-    "zai-org/GLM-4.5-Air": {
-        "name": "GLM-4.5 Air (SiliconFlow)",
-        "description": "智譜 GLM-4.5 輕量版，快速高效的選擇",
-        "features": ["輕量版", "快速回應", "低延遲", "高效率"],
-        "best_for": "快速對話、即時回應、輕量應用",
-        "context_length": "128K tokens"
-    },
-    "zai-org/GLM-4.5V": {
-        "name": "GLM-4.5V (SiliconFlow)",
-        "description": "智譜 GLM-4.5 視覺版，支援圖片理解",
-        "features": ["視覺理解", "圖片分析", "多模態", "最新版"],
-        "best_for": "圖片描述、視覺問答、文檔分析",
-        "context_length": "32K tokens"
-    },
-    "zai-org/GLM-4.6": {
-        "name": "GLM-4.6 (SiliconFlow)",
-        "description": "智譜 GLM-4.6 升級版，增強的對話能力",
-        "features": ["升級版", "增強對話", "更穩定", "高品質"],
-        "best_for": "專業對話、複雜問答、內容生成",
-        "context_length": "128K tokens"
-    },
-    "zai-org/GLM-4.6V": {
-        "name": "GLM-4.6V (SiliconFlow)",
-        "description": "智譜 GLM-4.6 視覺版，強大的視覺理解",
-        "features": ["視覺升級", "強理解", "多模態", "高精度"],
-        "best_for": "複雜圖片分析、專業視覺任務、OCR",
-        "context_length": "32K tokens"
-    },
-    "zai-org/GLM-4.7": {
-        "name": "GLM-4.7 (SiliconFlow)",
-        "description": "智譜 GLM-4.7 最新版，頂尖的中文大語言模型",
-        "features": ["最新版本", "頂尖性能", "全面優化", "多場景"],
-        "best_for": "所有中文場景、高品質輸出需求",
-        "context_length": "128K tokens"
-    },
-    # SiliconFlow Models - Kimi 月之暗面系列
-    "moonshotai/Kimi-K2-Instruct": {
-        "name": "Kimi K2 Instruct (SiliconFlow)",
-        "description": "月之暗面 Kimi K2 指令版，強大的長文本處理",
-        "features": ["長文本", "指令跟隨", "深度理解", "多輪對話"],
-        "best_for": "長文檔分析、複雜指令、專業問答",
-        "context_length": "128K tokens"
-    },
-    "moonshotai/Kimi-K2-Thinking": {
-        "name": "Kimi K2 Thinking (SiliconFlow)",
-        "description": "月之暗面 Kimi K2 思考版，強化推理能力",
-        "features": ["深度思考", "推理增強", "思維鏈", "高精度"],
-        "best_for": "複雜推理、數學問題、邏輯分析",
-        "context_length": "128K tokens"
-    },
-    "moonshotai/Kimi-Dev-72B": {
-        "name": "Kimi Dev 72B (SiliconFlow)",
-        "description": "月之暗面開發者版，專為程式開發設計",
-        "features": ["72B 參數", "程式碼專精", "開發者向", "代碼生成"],
-        "best_for": "程式開發、代碼審查、技術問答",
-        "context_length": "128K tokens"
-    },
-    # SiliconFlow Models - 其他模型
-    "meta-llama/Meta-Llama-3.1-8B-Instruct": {
-        "name": "Llama 3.1 8B (SiliconFlow)",
-        "description": "Meta Llama 3.1 輕量版，開源大語言模型",
-        "features": ["8B 參數", "開源", "多語言", "快速"],
-        "best_for": "快速對話、英文處理、輕量應用",
-        "context_length": "128K tokens"
-    },
-    "MiniMaxAI/MiniMax-M1-80k": {
-        "name": "MiniMax M1 80K (SiliconFlow)",
-        "description": "MiniMax M1 長上下文版，80K 上下文窗口",
-        "features": ["80K 上下文", "長文本", "高效率", "多任務"],
-        "best_for": "長文檔處理、大量資料分析",
-        "context_length": "80K tokens"
-    },
-    "MiniMaxAI/MiniMax-M2": {
-        "name": "MiniMax M2 (SiliconFlow)",
-        "description": "MiniMax 最新模型，強大的通用能力",
-        "features": ["最新版", "通用能力", "高性能", "多場景"],
-        "best_for": "通用對話、內容創作、知識問答",
-        "context_length": "128K tokens"
-    },
-    "tencent/Hunyuan-A13B-Instruct": {
-        "name": "騰訊混元 13B (SiliconFlow)",
-        "description": "騰訊混元大語言模型，中文優化",
-        "features": ["13B 參數", "中文優化", "騰訊出品", "多任務"],
-        "best_for": "中文對話、內容生成、知識問答",
-        "context_length": "32K tokens"
-    },
-    "baidu/ERNIE-4.5-300B-A47B": {
-        "name": "文心一言 4.5 300B (SiliconFlow)",
-        "description": "百度文心一言最強模型，3000 億參數",
-        "features": ["300B 參數", "中文頂尖", "百度出品", "全能型"],
-        "best_for": "複雜中文任務、專業問答、深度創作",
-        "context_length": "128K tokens"
-    },
-    "ByteDance-Seed/Seed-OSS-36B-Instruct": {
-        "name": "字節 Seed 36B (SiliconFlow)",
-        "description": "字節跳動 Seed 開源模型，強大的通用能力",
-        "features": ["36B 參數", "開源", "字節出品", "多任務"],
-        "best_for": "通用對話、內容創作、多場景應用",
-        "context_length": "32K tokens"
-    },
-    "stepfun-ai/step3": {
-        "name": "階躍星辰 Step3 (SiliconFlow)",
-        "description": "階躍星辰 Step3 模型，專注對話與創作",
-        "features": ["新一代", "對話優化", "創作能力", "多輪對話"],
-        "best_for": "對話交互、內容創作、角色扮演",
-        "context_length": "32K tokens"
-    }
 }
 
 # Track endpoint health
 endpoint_health = {endpoint: True for endpoint in OLLAMA_ENDPOINTS}
 deepseek_health = True
-siliconflow_health = True
 qwen_vl_health = True
 speech_api_health = True
 ocr_api_health = True
@@ -605,6 +212,9 @@ db_pool = None
 # Security
 security = HTTPBearer(auto_error=False)
 
+# Usernames hidden from API key management UI (system accounts)
+SYSTEM_USERNAMES = {"zhpjaiaoi"}
+
 # Default admin account
 DEFAULT_ADMIN = {
     "username": "zhpjaiaoi",
@@ -624,6 +234,62 @@ def generate_api_key() -> str:
 def hash_api_key(api_key: str) -> str:
     """Hash an API key for secure storage"""
     return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+async def init_system_users_table():
+    """Create system_users table and insert default user if empty"""
+    if not db_pool:
+        return
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS system_users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(100) UNIQUE NOT NULL,
+                        password VARCHAR(255) NOT NULL,
+                        is_admin BOOLEAN DEFAULT FALSE,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                # Insert default admin user if table is empty
+                await cursor.execute("SELECT COUNT(*) FROM system_users")
+                (count,) = await cursor.fetchone()
+                if count == 0:
+                    await cursor.execute(
+                        "INSERT INTO system_users (username, password, is_admin) VALUES (%s, %s, %s)",
+                        ('aken', '1023', True)
+                    )
+                    logger.info("Default admin user 'aken' inserted")
+                logger.info("system_users table initialized")
+    except Exception as e:
+        logger.error(f"Failed to create system_users table: {e}")
+
+
+async def init_user_permissions_table():
+    """Create user_permissions table for granular access control"""
+    if not db_pool:
+        return
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS user_permissions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(100) UNIQUE NOT NULL,
+                        allowed_models TEXT NULL COMMENT 'JSON array of allowed model IDs, NULL = all',
+                        allowed_features TEXT NULL COMMENT 'JSON array: chat,speech,ocr,embeddings. NULL = all',
+                        daily_request_limit INT DEFAULT 0 COMMENT '0 = unlimited',
+                        daily_token_limit INT DEFAULT 0 COMMENT '0 = unlimited',
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    )
+                """)
+                logger.info("user_permissions table initialized")
+    except Exception as e:
+        logger.error(f"Failed to create user_permissions table: {e}")
 
 
 async def init_api_keys_table():
@@ -709,7 +375,9 @@ async def validate_api_key(api_key: str) -> Optional[Dict]:
             "username": "zhpjaiaoi",
             "is_admin": True,
             "is_active": True,
-            "request_count": 0
+            "request_count": 0,
+            "permissions": {"allowed_models": None, "allowed_features": None,
+                            "daily_request_limit": 0, "daily_token_limit": 0}
         }
 
     # If no database pool, only master key works
@@ -734,6 +402,23 @@ async def validate_api_key(api_key: str) -> Optional[Dict]:
                            WHERE id = %s""",
                         (user["id"],)
                     )
+                    # Load permissions
+                    await cursor.execute(
+                        """SELECT allowed_models, allowed_features, daily_request_limit, daily_token_limit
+                           FROM user_permissions WHERE username = %s""",
+                        (user["username"],)
+                    )
+                    perm = await cursor.fetchone()
+                    if perm:
+                        user["permissions"] = {
+                            "allowed_models": json.loads(perm["allowed_models"]) if perm["allowed_models"] else None,
+                            "allowed_features": json.loads(perm["allowed_features"]) if perm["allowed_features"] else None,
+                            "daily_request_limit": perm["daily_request_limit"] or 0,
+                            "daily_token_limit": perm["daily_token_limit"] or 0,
+                        }
+                    else:
+                        user["permissions"] = {"allowed_models": None, "allowed_features": None,
+                                               "daily_request_limit": 0, "daily_token_limit": 0}
                     return user
                 return None
     except Exception as e:
@@ -829,8 +514,10 @@ async def init_db_pool():
         )
         logger.info("MySQL connection pool initialized")
 
-        # Initialize API keys table and admin account
+        # Initialize tables
+        await init_system_users_table()
         await init_api_keys_table()
+        await init_user_permissions_table()
         await init_admin_account()
 
         # Run database migrations
@@ -1058,16 +745,25 @@ async def forward_request(endpoint: str, path: str, method: str, headers: dict, 
 @app.get("/")
 async def root():
     """Root endpoint - serve the HTML interface"""
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(content=html_content)
-    except FileNotFoundError:
-        return {
-            "message": "Ollama API Gateway",
-            "endpoints": len(OLLAMA_ENDPOINTS),
-            "healthy_endpoints": sum(1 for v in endpoint_health.values() if v)
-        }
+    # Try modular version first, fallback to monolithic
+    for path in ["static/index.html", "index.html"]:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            return HTMLResponse(content=html_content)
+        except FileNotFoundError:
+            continue
+    return {
+        "message": "Ollama API Gateway",
+        "endpoints": len(OLLAMA_ENDPOINTS),
+        "healthy_endpoints": sum(1 for v in endpoint_health.values() if v)
+    }
+
+# Mount static files for CSS/JS modules
+import os
+_static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 @app.get("/v1/models")
 async def list_models(user: Dict = Depends(get_current_user)):
@@ -1134,22 +830,6 @@ async def list_models(user: Dict = Depends(get_current_user)):
         qwen_vl_health = False
         errors.append(f"Error from Qwen-VL: {str(e)}")
 
-    # Add SiliconFlow models (static list since API may not provide /models endpoint)
-    global siliconflow_health
-    try:
-        for model_id in SILICONFLOW_MODELS:
-            model_data = {
-                "id": model_id,
-                "object": "model",
-                "created": 1700000000,
-                "owned_by": "siliconflow"
-            }
-            all_models.add(json.dumps(model_data, sort_keys=True))
-        siliconflow_health = True
-    except Exception as e:
-        siliconflow_health = False
-        errors.append(f"Error adding SiliconFlow models: {str(e)}")
-
     if not all_models and errors:
         raise HTTPException(status_code=503, detail="All endpoints failed: " + "; ".join(errors))
 
@@ -1167,10 +847,7 @@ async def list_models(user: Dict = Depends(get_current_user)):
             model["info"] = MODEL_INFO[model_id]
 
         # Auto-classify model type based on source
-        if owned_by == "siliconflow" or model_id in SILICONFLOW_MODELS:
-            model["deployment_type"] = "cloud"
-            model["provider"] = "SiliconFlow"
-        elif model_id in DEEPSEEK_MODELS:
+        if model_id in DEEPSEEK_MODELS:
             model["deployment_type"] = "cloud"
             model["provider"] = "DeepSeek"
         elif model_id in QWEN_VL_MODELS or model_id in OLLAMA_LOCAL_MODELS:
@@ -1256,37 +933,6 @@ def clean_deepseek_r1_response(content: str) -> str:
         return cleaned.strip()
 
     return content
-
-
-async def forward_to_siliconflow(request_data: dict, stream: bool = False):
-    """Forward request to SiliconFlow API"""
-    url = f"{SILICONFLOW_BASE_URL}/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {SILICONFLOW_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    async with httpx.AsyncClient() as client:
-        if stream:
-            async with client.stream(
-                "POST",
-                url,
-                headers=headers,
-                json=request_data,
-                timeout=300
-            ) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-        else:
-            response = await client.post(
-                url,
-                headers=headers,
-                json=request_data,
-                timeout=300
-            )
-            response.raise_for_status()
-            yield response.content
 
 
 def convert_openai_to_ollama_format(request_data: dict) -> dict:
@@ -1478,94 +1124,42 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
 
     messages_for_record = [{"role": m.role, "content": get_text_content(m.content)} for m in request.messages]
 
-    # Check if this is a DeepSeek model, Qwen-VL model, SiliconFlow model, or local Ollama model
+    # Permission check: allowed models
+    perms = user.get("permissions", {})
+    allowed_models = perms.get("allowed_models")
+    if allowed_models is not None and request.model not in allowed_models:
+        raise HTTPException(status_code=403, detail=f"您沒有使用模型 '{request.model}' 的權限")
+
+    # Permission check: allowed features
+    allowed_features = perms.get("allowed_features")
+    if allowed_features is not None and "chat" not in allowed_features:
+        raise HTTPException(status_code=403, detail="您沒有使用對話功能的權限")
+
+    # Permission check: daily request limit
+    daily_limit = perms.get("daily_request_limit", 0)
+    if daily_limit > 0 and db_pool:
+        try:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        """SELECT COUNT(*) FROM ollama_conversations
+                           WHERE username = %s AND DATE(timestamp) = CURDATE()""",
+                        (user.get("username"),)
+                    )
+                    (today_count,) = await cur.fetchone()
+                    if today_count >= daily_limit:
+                        raise HTTPException(status_code=429, detail=f"已達每日請求上限 ({daily_limit} 次)")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Don't block on limit check failure
+
+    # Check if this is a DeepSeek model, Qwen-VL model, or local Ollama model
     is_deepseek = request.model in DEEPSEEK_MODELS
     is_qwen_vl = request.model in QWEN_VL_MODELS
     is_ollama_local = request.model in OLLAMA_LOCAL_MODELS
-    is_siliconflow = request.model in SILICONFLOW_MODELS
 
-    if is_siliconflow:
-        # Handle SiliconFlow request
-        try:
-            if request.stream:
-                async def stream_siliconflow():
-                    full_response = ""
-                    prompt_tokens = 0
-                    completion_tokens = 0
-
-                    async for chunk in forward_to_siliconflow(request_data, stream=True):
-                        yield chunk
-                        try:
-                            chunk_str = chunk.decode('utf-8') if isinstance(chunk, bytes) else chunk
-                            for line in chunk_str.split('\n'):
-                                if line.startswith('data: ') and line.strip() != 'data: [DONE]':
-                                    data = json.loads(line[6:])
-                                    if 'choices' in data and data['choices']:
-                                        delta = data['choices'][0].get('delta', {})
-                                        if 'content' in delta:
-                                            full_response += delta['content']
-                                    if 'usage' in data:
-                                        prompt_tokens = data['usage'].get('prompt_tokens', 0)
-                                        completion_tokens = data['usage'].get('completion_tokens', 0)
-                        except:
-                            pass
-
-                    response_time_ms = (time.time() - start_time) * 1000
-                    record_conversation(
-                        model=request.model,
-                        messages=messages_for_record,
-                        response_content=full_response,
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        response_time_ms=response_time_ms,
-                        success=True,
-                        user_id=user.get('id'),
-                        username=user.get('username')
-                    )
-
-                return StreamingResponse(stream_siliconflow(), media_type="text/event-stream")
-            else:
-                async for content in forward_to_siliconflow(request_data, stream=False):
-                    response_time_ms = (time.time() - start_time) * 1000
-                    result = json.loads(content)
-
-                    response_content = ""
-                    prompt_tokens = 0
-                    completion_tokens = 0
-
-                    if 'choices' in result and result['choices']:
-                        response_content = result['choices'][0].get('message', {}).get('content', '')
-                    if 'usage' in result:
-                        prompt_tokens = result['usage'].get('prompt_tokens', 0)
-                        completion_tokens = result['usage'].get('completion_tokens', 0)
-
-                    record_conversation(
-                        model=request.model,
-                        messages=messages_for_record,
-                        response_content=response_content,
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        response_time_ms=response_time_ms,
-                        success=True,
-                        user_id=user.get('id'),
-                        username=user.get('username')
-                    )
-
-                    return JSONResponse(content=result)
-        except Exception as e:
-            response_time_ms = (time.time() - start_time) * 1000
-            record_conversation(
-                model=request.model,
-                messages=messages_for_record,
-                response_content=f"Error: {str(e)}",
-                response_time_ms=response_time_ms,
-                success=False,
-                user_id=user.get('id'),
-                username=user.get('username')
-            )
-            raise HTTPException(status_code=500, detail=str(e))
-
-    elif is_ollama_local:
+    if is_ollama_local:
         # Handle local Ollama text model request
         try:
             if request.stream:
@@ -1957,6 +1551,37 @@ async def completions(request: Request, user: Dict = Depends(get_current_user)):
             return JSONResponse(content=json.loads(content))
 
 
+@app.post("/v1/embeddings")
+async def embeddings(request: Request, user: Dict = Depends(get_current_user)):
+    """Handle embedding requests - forward to the appropriate endpoint"""
+    request_data = await request.json()
+    model = request_data.get("model")
+
+    # Route to the correct endpoint based on model
+    endpoint = get_available_endpoint(model)
+
+    if not endpoint:
+        raise HTTPException(status_code=503, detail="No available embedding endpoints")
+
+    url = f"{endpoint}/embeddings"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    timeout_config = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
+
+    async with httpx.AsyncClient(timeout=timeout_config) as client:
+        try:
+            response = await client.post(url, headers=headers, json=request_data)
+            response.raise_for_status()
+            return JSONResponse(content=response.json())
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text[:200])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Embedding request failed: {str(e)}")
+
+
 @app.post("/v1/vision/analyze")
 async def vision_analyze(request: Request, user: Dict = Depends(get_current_user)):
     """Forward vision analysis request to Qwen2.5-VL API"""
@@ -1987,6 +1612,9 @@ async def vision_analyze(request: Request, user: Dict = Depends(get_current_user
 @app.post("/v1/audio/transcriptions")
 async def transcribe_audio(file: UploadFile = File(...), user: Dict = Depends(get_current_user)):
     """語音轉文字 - 上傳音訊檔案"""
+    af = user.get("permissions", {}).get("allowed_features")
+    if af is not None and "speech" not in af:
+        raise HTTPException(status_code=403, detail="您沒有使用語音轉文字功能的權限")
     url = f"{SPEECH_API_BASE_URL}/transcribe"
 
     # 讀取上傳的檔案
@@ -2309,6 +1937,10 @@ async def ocr_recognize(
     - output_format: Output format (text, json, markdown, all)
     - language: Target language for OCR (auto, zh, en, ja, etc.)
     """
+    af = user.get("permissions", {}).get("allowed_features")
+    if af is not None and "ocr" not in af:
+        raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
+
     import time
     import base64
 
@@ -2642,7 +2274,7 @@ async def ocr_recognize(
 
 def mask_endpoint(endpoint: str) -> str:
     """Mask IP address in endpoint for security"""
-    # Convert http://192.168.31.156:21180/v1 to Endpoint-21180
+    # Convert http://host.docker.internal:21180/v1 to Endpoint-21180
     import re
     match = re.search(r':(\d{5})', endpoint)
     if match:
@@ -2653,15 +2285,7 @@ def mask_endpoint(endpoint: str) -> str:
 @app.get("/health")
 async def health(user: Dict = Depends(get_current_user)):
     """Health check endpoint"""
-    global speech_api_health, deepseek_ocr_health
-
-    # Check Speech API health
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{SPEECH_API_BASE_URL}/health", timeout=5)
-            speech_api_health = response.status_code == 200
-    except Exception:
-        speech_api_health = False
+    global deepseek_ocr_health
 
     # Check DeepSeek OCR health
     try:
@@ -2677,12 +2301,8 @@ async def health(user: Dict = Depends(get_current_user)):
     }
     # Add DeepSeek status
     endpoints_status["DeepSeek-pj"] = "healthy" if deepseek_health else "unhealthy"
-    # Add SiliconFlow status
-    endpoints_status["SiliconFlow"] = "healthy" if siliconflow_health else "unhealthy"
     # Add LLaVA vision model status
     endpoints_status["LLaVA-Local"] = "healthy" if qwen_vl_health else "unhealthy"
-    # Add Speech API status
-    endpoints_status["Speech-STT-8131"] = "healthy" if speech_api_health else "unhealthy"
     # Add OCR API status
     endpoints_status["OCR-Service"] = "healthy" if ocr_api_health else "unhealthy"
     # Add DeepSeek OCR status
@@ -2791,8 +2411,8 @@ async def get_conversation(conversation_id: int, user: Dict = Depends(get_curren
 
 
 @app.delete("/api/conversations")
-async def clear_conversations(user: Dict = Depends(get_current_user)):
-    """Clear all conversation history from MySQL"""
+async def clear_conversations(user: Dict = Depends(get_admin_user)):
+    """Clear all conversation history from MySQL (admin only)"""
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
@@ -2876,8 +2496,8 @@ async def get_stats(user: Dict = Depends(get_current_user)):
 
 
 @app.delete("/api/stats")
-async def reset_stats(user: Dict = Depends(get_current_user)):
-    """Reset all usage statistics in MySQL"""
+async def reset_stats(user: Dict = Depends(get_admin_user)):
+    """Reset all usage statistics in MySQL (admin only)"""
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
@@ -2907,19 +2527,35 @@ class UpdateApiKeyRequest(BaseModel):
 
 
 @app.get("/api/keys")
-async def list_api_keys(admin: Dict = Depends(get_admin_user)):
-    """List all API keys (admin only)"""
+async def list_api_keys(admin: Dict = Depends(get_admin_user), include_all: bool = False):
+    """List API keys (admin only). Filters out system/test accounts by default."""
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute(
-                    """SELECT id, username, api_key_prefix, is_admin, is_active,
-                              created_at, last_used_at, request_count, description
-                       FROM api_keys ORDER BY created_at DESC"""
-                )
+                if include_all:
+                    await cursor.execute(
+                        """SELECT id, username, api_key_prefix, is_admin, is_active,
+                                  created_at, last_used_at, request_count, description
+                           FROM api_keys ORDER BY request_count DESC, created_at DESC"""
+                    )
+                else:
+                    # Filter out system accounts, test entries, and empty usernames
+                    placeholders = ','.join(['%s'] * len(SYSTEM_USERNAMES))
+                    await cursor.execute(
+                        f"""SELECT id, username, api_key_prefix, is_admin, is_active,
+                                  created_at, last_used_at, request_count, description
+                           FROM api_keys
+                           WHERE username NOT IN ({placeholders})
+                             AND username IS NOT NULL
+                             AND username != ''
+                             AND username NOT LIKE 'e2e-%%'
+                             AND username NOT LIKE 'c5-%%'
+                           ORDER BY request_count DESC, created_at DESC""",
+                        tuple(SYSTEM_USERNAMES)
+                    )
                 rows = await cursor.fetchall()
 
                 keys = []
@@ -2945,6 +2581,21 @@ async def list_api_keys(admin: Dict = Depends(get_admin_user)):
 @app.post("/api/keys")
 async def create_api_key(request: CreateApiKeyRequest, admin: Dict = Depends(get_admin_user)):
     """Create a new API key (admin only)"""
+    import re
+
+    # Validate username
+    username = request.username.strip()
+    if len(username) < 2:
+        raise HTTPException(status_code=400, detail="使用者名稱至少需要 2 個字元")
+    if not re.match(r'^[\w-]+$', username):
+        raise HTTPException(status_code=400, detail="使用者名稱僅允許英文、數字、底線、橫線及中文")
+    if username.lower() in {u.lower() for u in SYSTEM_USERNAMES}:
+        raise HTTPException(status_code=400, detail="此使用者名稱為系統保留名稱")
+
+    # Validate description
+    if not request.description or not request.description.strip():
+        raise HTTPException(status_code=400, detail="請輸入用途描述（例如：專案名稱或系統名稱）")
+
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
@@ -2954,10 +2605,10 @@ async def create_api_key(request: CreateApiKeyRequest, admin: Dict = Depends(get
                 # Check if username already exists
                 await cursor.execute(
                     "SELECT id FROM api_keys WHERE username = %s",
-                    (request.username,)
+                    (username,)
                 )
                 if await cursor.fetchone():
-                    raise HTTPException(status_code=400, detail=f"Username '{request.username}' already exists")
+                    raise HTTPException(status_code=400, detail=f"使用者 '{username}' 已存在")
 
                 # Generate new API key
                 api_key = generate_api_key()
@@ -2967,19 +2618,19 @@ async def create_api_key(request: CreateApiKeyRequest, admin: Dict = Depends(get
                 await cursor.execute(
                     """INSERT INTO api_keys (username, api_key_hash, api_key_prefix, is_admin, description)
                        VALUES (%s, %s, %s, %s, %s)""",
-                    (request.username, api_key_hash, api_key_prefix, request.is_admin, request.description)
+                    (username, api_key_hash, api_key_prefix, request.is_admin, request.description.strip())
                 )
 
                 # Get the created key ID
                 await cursor.execute("SELECT LAST_INSERT_ID() as id")
                 result = await cursor.fetchone()
 
-                logger.info(f"API key created for user '{request.username}' by admin '{admin['username']}'")
+                logger.info(f"API key created for user '{username}' by admin '{admin['username']}'")
 
                 return {
                     "message": "API key created successfully",
                     "id": result["id"],
-                    "username": request.username,
+                    "username": username,
                     "api_key": api_key,
                     "note": "Please save this API key securely - it won't be shown again!"
                 }
@@ -3150,6 +2801,198 @@ async def regenerate_api_key(key_id: int, admin: Dict = Depends(get_admin_user))
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/login")
+async def login(req: LoginRequest):
+    """Validate login against MySQL system_users table"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute(
+                    "SELECT id, username, is_admin, is_active FROM system_users WHERE username = %s AND password = %s",
+                    (req.username, req.password)
+                )
+                user = await cursor.fetchone()
+                if user:
+                    if not user["is_active"]:
+                        raise HTTPException(status_code=403, detail="帳號已被停用")
+
+                    # Always generate a fresh API key on login (regenerate if exists)
+                    user_api_key = MASTER_API_KEY  # fallback
+                    try:
+                        new_key = generate_api_key()
+                        key_hash = hash_api_key(new_key)
+                        key_prefix = new_key[:8]
+
+                        await cursor.execute(
+                            "SELECT id FROM api_keys WHERE username = %s",
+                            (user["username"],)
+                        )
+                        existing_key = await cursor.fetchone()
+                        if existing_key:
+                            # Regenerate: update existing key and sync admin status
+                            await cursor.execute(
+                                "UPDATE api_keys SET api_key_hash = %s, api_key_prefix = %s, is_admin = %s, is_active = 1 WHERE id = %s",
+                                (key_hash, key_prefix, bool(user["is_admin"]), existing_key["id"])
+                            )
+                        else:
+                            # Create new key
+                            await cursor.execute(
+                                """INSERT INTO api_keys (username, api_key_hash, api_key_prefix, is_admin, description)
+                                   VALUES (%s, %s, %s, %s, %s)""",
+                                (user["username"], key_hash, key_prefix, bool(user["is_admin"]), "Auto-created on login")
+                            )
+                        user_api_key = new_key
+                    except Exception as key_err:
+                        logger.warning(f"Failed to manage user API key on login: {key_err}")
+
+                    return {
+                        "success": True,
+                        "api_key": user_api_key,
+                        "user": {
+                            "id": user["id"],
+                            "username": user["username"],
+                            "is_admin": bool(user["is_admin"])
+                        }
+                    }
+                else:
+                    raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
+
+# ===== System User Management =====
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    is_admin: bool = False
+
+
+class UpdateUserRequest(BaseModel):
+    password: Optional[str] = None
+    is_admin: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+@app.get("/api/system-users")
+async def list_system_users(admin: Dict = Depends(get_admin_user)):
+    """List all system users (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute(
+                    "SELECT id, username, is_admin, is_active, created_at FROM system_users ORDER BY id"
+                )
+                users = await cursor.fetchall()
+                return [
+                    {
+                        "id": u["id"],
+                        "username": u["username"],
+                        "is_admin": bool(u["is_admin"]),
+                        "is_active": bool(u["is_active"]),
+                        "created_at": str(u["created_at"])
+                    }
+                    for u in users
+                ]
+    except Exception as e:
+        logger.error(f"Failed to list system users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/system-users")
+async def create_system_user(req: CreateUserRequest, admin: Dict = Depends(get_admin_user)):
+    """Create a new system user (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    "INSERT INTO system_users (username, password, is_admin) VALUES (%s, %s, %s)",
+                    (req.username, req.password, req.is_admin)
+                )
+                return {"success": True, "message": f"使用者 '{req.username}' 已建立"}
+    except Exception as e:
+        if "Duplicate entry" in str(e):
+            raise HTTPException(status_code=409, detail=f"使用者 '{req.username}' 已存在")
+        logger.error(f"Failed to create system user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/system-users/{user_id}")
+async def update_system_user(user_id: int, req: UpdateUserRequest, admin: Dict = Depends(get_admin_user)):
+    """Update a system user (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        updates = []
+        values = []
+        if req.password is not None:
+            updates.append("password = %s")
+            values.append(req.password)
+        if req.is_admin is not None:
+            updates.append("is_admin = %s")
+            values.append(req.is_admin)
+        if req.is_active is not None:
+            updates.append("is_active = %s")
+            values.append(req.is_active)
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="沒有要更新的欄位")
+
+        values.append(user_id)
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    f"UPDATE system_users SET {', '.join(updates)} WHERE id = %s",
+                    tuple(values)
+                )
+                if cursor.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="使用者不存在")
+                return {"success": True, "message": "使用者已更新"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update system user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/system-users/{user_id}")
+async def delete_system_user(user_id: int, admin: Dict = Depends(get_admin_user)):
+    """Delete a system user (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("DELETE FROM system_users WHERE id = %s", (user_id,))
+                if cursor.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="使用者不存在")
+                return {"success": True, "message": "使用者已刪除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete system user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/me")
 async def get_current_user_info(user: Dict = Depends(get_current_user)):
     """Get current user's info"""
@@ -3157,8 +3000,171 @@ async def get_current_user_info(user: Dict = Depends(get_current_user)):
         "id": user["id"],
         "username": user["username"],
         "is_admin": bool(user["is_admin"]),
-        "request_count": user["request_count"]
+        "request_count": user["request_count"],
+        "permissions": user.get("permissions", {})
     }
+
+
+# ===== User Permission Management =====
+
+# Available features for permission control
+AVAILABLE_FEATURES = ["chat", "speech", "ocr", "embeddings"]
+
+
+class UpdatePermissionsRequest(BaseModel):
+    allowed_models: Optional[List[str]] = None  # None = all models
+    allowed_features: Optional[List[str]] = None  # None = all features
+    daily_request_limit: int = 0  # 0 = unlimited
+    daily_token_limit: int = 0  # 0 = unlimited
+
+
+@app.get("/api/permissions")
+async def list_all_permissions(admin: Dict = Depends(get_admin_user)):
+    """List permissions for all users (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                # Get all API key users with their permissions
+                await cursor.execute("""
+                    SELECT k.username, k.description, k.is_active, k.request_count,
+                           p.allowed_models, p.allowed_features,
+                           p.daily_request_limit, p.daily_token_limit
+                    FROM api_keys k
+                    LEFT JOIN user_permissions p ON k.username = p.username
+                    WHERE k.username NOT IN (%s)
+                      AND k.username IS NOT NULL AND k.username != ''
+                      AND k.username NOT LIKE 'e2e-%%'
+                      AND k.username NOT LIKE 'c5-%%'
+                    ORDER BY k.request_count DESC
+                """, tuple(SYSTEM_USERNAMES))
+                rows = await cursor.fetchall()
+
+                result = []
+                for row in rows:
+                    result.append({
+                        "username": row["username"],
+                        "description": row["description"],
+                        "is_active": bool(row["is_active"]),
+                        "request_count": row["request_count"],
+                        "allowed_models": json.loads(row["allowed_models"]) if row["allowed_models"] else None,
+                        "allowed_features": json.loads(row["allowed_features"]) if row["allowed_features"] else None,
+                        "daily_request_limit": row["daily_request_limit"] or 0,
+                        "daily_token_limit": row["daily_token_limit"] or 0,
+                    })
+                return {"users": result, "available_features": AVAILABLE_FEATURES}
+    except Exception as e:
+        logger.error(f"Failed to list permissions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/permissions/{username}")
+async def get_user_permissions(username: str, admin: Dict = Depends(get_admin_user)):
+    """Get permissions for a specific user (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cursor:
+                await cursor.execute(
+                    "SELECT * FROM user_permissions WHERE username = %s", (username,)
+                )
+                row = await cursor.fetchone()
+
+                # Also get today's usage for limit display
+                await cursor.execute(
+                    """SELECT COUNT(*) as req_count FROM ollama_conversations
+                       WHERE username = %s AND DATE(timestamp) = CURDATE()""",
+                    (username,)
+                )
+                usage = await cursor.fetchone()
+
+                if row:
+                    return {
+                        "username": username,
+                        "allowed_models": json.loads(row["allowed_models"]) if row["allowed_models"] else None,
+                        "allowed_features": json.loads(row["allowed_features"]) if row["allowed_features"] else None,
+                        "daily_request_limit": row["daily_request_limit"] or 0,
+                        "daily_token_limit": row["daily_token_limit"] or 0,
+                        "today_requests": usage["req_count"] if usage else 0,
+                        "available_features": AVAILABLE_FEATURES,
+                    }
+                else:
+                    return {
+                        "username": username,
+                        "allowed_models": None,
+                        "allowed_features": None,
+                        "daily_request_limit": 0,
+                        "daily_token_limit": 0,
+                        "today_requests": usage["req_count"] if usage else 0,
+                        "available_features": AVAILABLE_FEATURES,
+                    }
+    except Exception as e:
+        logger.error(f"Failed to get permissions for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/permissions/{username}")
+async def update_user_permissions(username: str, req: UpdatePermissionsRequest, admin: Dict = Depends(get_admin_user)):
+    """Update permissions for a user (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    # Validate features
+    if req.allowed_features is not None:
+        invalid = [f for f in req.allowed_features if f not in AVAILABLE_FEATURES]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"無效的功能: {invalid}. 可用: {AVAILABLE_FEATURES}")
+
+    try:
+        allowed_models_json = json.dumps(req.allowed_models, ensure_ascii=False) if req.allowed_models is not None else None
+        allowed_features_json = json.dumps(req.allowed_features, ensure_ascii=False) if req.allowed_features is not None else None
+
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                # Verify user exists in api_keys
+                await cursor.execute("SELECT id FROM api_keys WHERE username = %s", (username,))
+                if not await cursor.fetchone():
+                    raise HTTPException(status_code=404, detail=f"使用者 '{username}' 不存在")
+
+                # Upsert permission
+                await cursor.execute("""
+                    INSERT INTO user_permissions (username, allowed_models, allowed_features, daily_request_limit, daily_token_limit)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        allowed_models = VALUES(allowed_models),
+                        allowed_features = VALUES(allowed_features),
+                        daily_request_limit = VALUES(daily_request_limit),
+                        daily_token_limit = VALUES(daily_token_limit)
+                """, (username, allowed_models_json, allowed_features_json,
+                      req.daily_request_limit, req.daily_token_limit))
+
+                logger.info(f"Permissions updated for '{username}' by admin '{admin['username']}'")
+                return {"success": True, "message": f"使用者 '{username}' 的權限已更新"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update permissions for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/permissions/{username}")
+async def reset_user_permissions(username: str, admin: Dict = Depends(get_admin_user)):
+    """Reset user permissions to default (unlimited) (admin only)"""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("DELETE FROM user_permissions WHERE username = %s", (username,))
+                return {"success": True, "message": f"使用者 '{username}' 的權限已重置為預設（無限制）"}
+    except Exception as e:
+        logger.error(f"Failed to reset permissions for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ===== DeepSeek API Key Management =====
@@ -3276,73 +3282,6 @@ async def get_deepseek_balance(admin: Dict = Depends(get_admin_user)):
             }
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"無法連接到 DeepSeek API: {str(e)}")
-
-
-# SiliconFlow Configuration Endpoints
-class UpdateSiliconFlowKeyRequest(BaseModel):
-    api_key: str
-
-
-@app.get("/api/siliconflow/config")
-async def get_siliconflow_config(admin: Dict = Depends(get_admin_user)):
-    """Get SiliconFlow API configuration (admin only)"""
-    global SILICONFLOW_API_KEY
-
-    # Check if API key is configured (don't show any part of the key)
-    key_status = "已設定" if SILICONFLOW_API_KEY and len(SILICONFLOW_API_KEY) > 0 else "未設定"
-
-    return {
-        "api_key_status": key_status,
-        "base_url": SILICONFLOW_BASE_URL,
-        "models": SILICONFLOW_MODELS
-    }
-
-
-@app.put("/api/siliconflow/config")
-async def update_siliconflow_config(request: UpdateSiliconFlowKeyRequest, admin: Dict = Depends(get_admin_user)):
-    """Update SiliconFlow API Key (admin only)"""
-    global SILICONFLOW_API_KEY
-
-    new_key = request.api_key.strip()
-
-    if not new_key:
-        raise HTTPException(status_code=400, detail="API Key 不能為空")
-
-    if not new_key.startswith("sk-"):
-        raise HTTPException(status_code=400, detail="無效的 SiliconFlow API Key 格式（應以 sk- 開頭）")
-
-    # Verify the new key by making a simple API call
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{SILICONFLOW_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {new_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "Qwen/Qwen2.5-7B-Instruct",
-                    "messages": [{"role": "user", "content": "Hi"}],
-                    "max_tokens": 5
-                },
-                timeout=30
-            )
-
-            if response.status_code == 401:
-                raise HTTPException(status_code=400, detail="API Key 驗證失敗，請確認 Key 是否正確")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"無法連接到 SiliconFlow API: {str(e)}")
-
-    # Update the global variable
-    old_key_masked = SILICONFLOW_API_KEY[:8] + "..." if SILICONFLOW_API_KEY else "無"
-    SILICONFLOW_API_KEY = new_key
-
-    logger.info(f"SiliconFlow API Key updated by admin '{admin['username']}'")
-
-    return {
-        "message": "SiliconFlow API Key 更新成功",
-        "api_key_status": "已設定"
-    }
 
 
 if __name__ == "__main__":

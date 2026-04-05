@@ -1,0 +1,128 @@
+/* ==========================================================================
+   DOCS STYLES
+   ========================================================================== */
+
+        .model-info-panel {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4f46e5;
+        }
+        .model-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .model-info-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .model-info-context {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .model-info-description {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .model-info-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .model-info-feature {
+            background: white;
+            border: 1px solid #667eea;
+            color: #667eea;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .model-info-best {
+            background: #e8f4e8;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 13px;
+        }
+        .model-info-best strong {
+            color: #28a745;
+        }
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .api-table th, .api-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .api-table th {
+            background: #667eea;
+            color: white;
+        }
+        .api-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .method-get {
+            background: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .method-post {
+            background: #007bff;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info-box p {
+            margin: 5px 0;
+        }
+        .model-recommendation {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .rec-card {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-left: 4px solid #4f46e5;
+        }
+        .rec-card h4 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .rec-card p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        .rec-card strong {
+            color: #4f46e5;
+        }

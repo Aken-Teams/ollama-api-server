@@ -1,0 +1,91 @@
+/* ==========================================================================
+   LOGIN STYLES
+   ========================================================================== */
+
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #4f46e5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .login-overlay.hidden {
+            display: none;
+        }
+        .login-box {
+            background: white;
+            border-radius: 16px;
+            padding: 50px;
+            width: 100%;
+            max-width: 450px;
+            border: 2px solid #e2e8f0;
+            text-align: center;
+        }
+        .login-logo {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+        .login-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .login-input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .login-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .login-input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .login-input-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .login-btn:hover {
+            background: #4338ca;
+        }
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .login-error {
+            color: #dc3545;
+            margin-top: 15px;
+            display: none;
+        }
+        .login-error.show {
+            display: block;
+        }

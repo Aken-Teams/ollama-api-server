@@ -1,0 +1,201 @@
+/* ==========================================================================
+   ORBITAL TIMELINE LOGIN BACKGROUND
+   ========================================================================== */
+
+/* Orbital container - sits behind login box */
+.orbital-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.orbital-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Central glowing orb */
+.orbital-core {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #3b82f6, #14b8a6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: orbital-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    position: relative;
+}
+
+.orbital-core-inner {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+}
+
+.orbital-core-ring1,
+.orbital-core-ring2 {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: orbital-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.orbital-core-ring1 {
+    width: 80px;
+    height: 80px;
+    top: -8px;
+    left: -8px;
+    opacity: 0.7;
+}
+
+.orbital-core-ring2 {
+    width: 96px;
+    height: 96px;
+    top: -16px;
+    left: -16px;
+    opacity: 0.5;
+    animation-delay: 0.5s;
+}
+
+/* Orbit path ring */
+.orbital-path {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Individual orbital nodes */
+.orbital-node {
+    position: absolute;
+    transition: all 0.7s ease;
+}
+
+.orbital-node-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(4px);
+}
+
+.orbital-node-label {
+    position: absolute;
+    top: 46px;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.7);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Energy glow behind nodes */
+.orbital-node-glow {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+    pointer-events: none;
+}
+
+/* Keyframe animations */
+@keyframes orbital-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+@keyframes orbital-ping {
+    75%, 100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+/* Override login-overlay for orbital theme */
+.login-overlay {
+    background: #000 !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.login-overlay .login-box {
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
+}
+
+.login-overlay .login-title {
+    color: white;
+}
+
+.login-overlay .login-subtitle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.login-overlay .login-input-group label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.login-overlay .login-input-group input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 10px;
+}
+
+.login-overlay .login-input-group input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.login-overlay .login-input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.login-overlay .login-btn {
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    border: none;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.login-overlay .login-btn:hover {
+    background: linear-gradient(135deg, #4f46e5, #2563eb);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+.login-overlay .login-error {
+    color: #f87171;
+}
+
+.login-overlay .login-logo {
+    filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+}

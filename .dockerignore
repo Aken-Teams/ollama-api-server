@@ -10,3 +10,9 @@ test_*.py
 .env
 .venv
 venv
+e2e-tests
+node_modules
+export
+app.log
+index.html.backup
+package.json

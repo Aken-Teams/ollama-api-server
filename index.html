@@ -3215,7 +3215,7 @@ for m in cloud_models:
         const pageSize = 10;
 
         // ========== Authentication System ==========
-        const SYSTEM_PASSWORD = 'pj1023';
+        const SYSTEM_PASSWORDS = ['大猩猩', '好朋友'];
         const MASTER_API_KEY = 'SNde7-i1hiNNW1D-EYt6RLsi6qYHAWWsE1LCUsrTO7k';
         let currentApiKey = '';
         let currentUser = null;
@@ -3278,7 +3278,7 @@ for m in cloud_models:
             loginError.classList.remove('show');
 
             // Check password
-            if (password === SYSTEM_PASSWORD) {
+            if (SYSTEM_PASSWORDS.includes(password)) {
                 isAuthenticated = true;
                 currentApiKey = MASTER_API_KEY;
                 localStorage.setItem('pj_authenticated', 'true');
@@ -3790,6 +3790,7 @@ for m in cloud_models:
         // 服務配置
         const serviceConfig = {
             'Endpoint-21180': { icon: '🦙', type: 'ollama', name: 'Ollama 21180', desc: 'LLM 推理服務', model: 'gpt-oss:120b' },
+            'Endpoint-21181': { icon: '💎', type: 'ollama', name: 'Gemma4 31B', desc: '多模態推理服務', model: 'gemma4:31b' },
             'Endpoint-21182': { icon: '🦙', type: 'ollama', name: 'Ollama 21182', desc: 'Embedding 服務', model: 'Qwen3-Embedding-8B' },
             'Endpoint-21183': { icon: '🦙', type: 'ollama', name: 'Ollama 21183', desc: 'Reranker 服務', model: 'bge-reranker-v2-m3' },
             'Endpoint-21185': { icon: '🧠', type: 'ollama', name: 'Qwen3.5 122B', desc: 'MoE 推理服務', model: 'Qwen3.5:122b' },
@@ -5009,7 +5010,7 @@ for m in cloud_models:
                 badgeClass: "local",
                 color: "#10b981",
                 guide: "本地 llama.cpp 伺服器，無需申請 API Key",
-                endpoint: "http://192.168.31.156:21180/v1",
+                endpoint: `${window.location.origin}/v1`,
                 link: null,
                 linkText: null
             },
