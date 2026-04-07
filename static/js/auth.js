@@ -182,6 +182,7 @@ function showMainContent() {
     if (typeof loadQuickTestModels === 'function') loadQuickTestModels();
     startAutoRefresh();
     setInterval(loadStats, 60000);
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 // ========== System User Management ==========

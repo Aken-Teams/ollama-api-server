@@ -32,17 +32,17 @@ async function checkStatusEnhanced() {
 
         // 更新整體狀態
         if (offline === 0) {
-            overallIcon.textContent = '✅';
+            overallIcon.innerHTML = lucideIcon('check-circle', 'icon-lg');
             overallTitle.textContent = '所有服務運行正常';
             overallDesc.textContent = `${online} 個服務在線，${modelCount} 個模型可用`;
             document.getElementById('overall-status').style.background = '#10b981';
         } else if (online > 0) {
-            overallIcon.textContent = '⚠️';
+            overallIcon.innerHTML = lucideIcon('alert-triangle', 'icon-lg');
             overallTitle.textContent = '部分服務異常';
             overallDesc.textContent = `${offline} 個服務離線，請檢查`;
             document.getElementById('overall-status').style.background = '#f59e0b';
         } else {
-            overallIcon.textContent = '❌';
+            overallIcon.innerHTML = lucideIcon('x-circle', 'icon-lg');
             overallTitle.textContent = '服務全部離線';
             overallDesc.textContent = '請檢查服務狀態';
             document.getElementById('overall-status').style.background = '#ef4444';
@@ -58,7 +58,7 @@ async function checkStatusEnhanced() {
         const offlineEndpoints = endpoints.filter(([_, s]) => s !== 'healthy');
 
         function renderOfflineRow(endpoint) {
-            const config = serviceConfig[endpoint] || { icon: '🔌', name: endpoint, desc: '', model: '' };
+            const config = serviceConfig[endpoint] || { icon: 'plug', name: endpoint, desc: '', model: '' };
             const modelInfo = config.model ? `<span style="color: #b0b0b0; font-size: 11px;"> · ${config.model}</span>` : '';
             return `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0;">
@@ -92,13 +92,14 @@ async function checkStatusEnhanced() {
         }
 
         dashboard.innerHTML = html;
+        refreshIcons();
 
         // 同時更新舊版介面（保持相容性）
         checkStatus();
 
     } catch (error) {
         console.error('Status check failed:', error);
-        overallIcon.textContent = '❌';
+        overallIcon.innerHTML = lucideIcon('x-circle', 'icon-lg');
         overallTitle.textContent = '無法連接服務';
         overallDesc.textContent = error.message;
         document.getElementById('overall-status').style.background = '#64748b';
@@ -107,7 +108,7 @@ async function checkStatusEnhanced() {
             <div class="monitor-card offline">
                 <div class="monitor-header">
                     <div class="monitor-title">
-                        <div class="monitor-icon">❌</div>
+                        <div class="monitor-icon">${lucideIcon('x-circle', 'icon-lg')}</div>
                         <div>
                             <div class="monitor-name">連接失敗</div>
                             <div class="monitor-type">${error.message}</div>

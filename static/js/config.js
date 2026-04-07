@@ -42,10 +42,12 @@ async function loadDeepSeekConfig() {
             statusDiv.innerHTML = '';
         } else {
             const errorData = await balanceResponse.json();
-            statusDiv.innerHTML = `<p style="color: #dc3545;">❌ ${errorData.detail || '無法載入 DeepSeek 配置'}</p>`;
+            statusDiv.innerHTML = `<p style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} ${errorData.detail || '無法載入 DeepSeek 配置'}</p>`;
+            refreshIcons();
         }
     } catch (error) {
-        statusDiv.innerHTML = `<p style="color: #dc3545;">❌ 載入失敗: ${error.message}</p>`;
+        statusDiv.innerHTML = `<p style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 載入失敗: ${error.message}</p>`;
+        refreshIcons();
     }
 }
 
@@ -80,14 +82,14 @@ async function updateDeepSeekKey() {
         const data = await response.json();
 
         if (response.ok) {
-            alert(`✅ ${data.message}\n\n餘額: ¥${data.balance?.balance_infos?.find(b => b.currency === 'CNY')?.total_balance || '--'}`);
+            alert(`${data.message}\n\n餘額: ¥${data.balance?.balance_infos?.find(b => b.currency === 'CNY')?.total_balance || '--'}`);
             keyInput.value = '';
             loadDeepSeekConfig();
         } else {
-            alert(`❌ 更新失敗: ${data.detail}`);
+            alert(`更新失敗: ${data.detail}`);
         }
     } catch (error) {
-        alert(`❌ 更新失敗: ${error.message}`);
+        alert(`更新失敗: ${error.message}`);
     }
 }
 

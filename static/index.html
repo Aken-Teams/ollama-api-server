@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/static/css/docs.css">
     <link rel="stylesheet" href="/static/css/footer.css">
     <link rel="stylesheet" href="/static/css/redesign.css">
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 <!-- Login Overlay -->
@@ -197,17 +198,17 @@
 
 <div id="tool-test" class="sub-content">
 <div id="test">
-    <h2>API 測試工具</h2>
+    <h2 style="margin-bottom: 20px;">API 測試工具</h2>
 
     <!-- 模型快速測試區塊 -->
     <div class="test-section model-quick-test">
         <div class="quick-test-header">
-            <h3>🚀 模型快速測試</h3>
+            <h3><i data-lucide="rocket" class="icon-sm"></i> 模型快速測試</h3>
             <div class="quick-test-actions">
                 <button class="btn btn-primary" onclick="testAllModels()">
-                    <span id="test-all-icon">▶️</span> 測試全部模型
+                    <span id="test-all-icon"><i data-lucide="play" class="icon-sm"></i></span> 測試全部模型
                 </button>
-                <button class="btn btn-secondary" onclick="refreshModelList()">🔄 重新整理</button>
+                <button class="btn btn-secondary" onclick="refreshModelList()"><i data-lucide="refresh-cw" class="icon-sm"></i> 重新整理</button>
             </div>
         </div>
         <p class="quick-test-desc">對每個模型發送簡單問題，快速確認服務是否正常運作</p>
@@ -226,17 +227,17 @@
         <!-- 測試結果摘要 -->
         <div id="test-summary" class="test-summary" style="display: none;">
             <div class="summary-item success">
-                <span class="summary-icon">✅</span>
+                <span class="summary-icon"><i data-lucide="check-circle" class="icon-lg" style="color:#28a745;"></i></span>
                 <span class="summary-count" id="success-count">0</span>
                 <span class="summary-label">成功</span>
             </div>
             <div class="summary-item failed">
-                <span class="summary-icon">❌</span>
+                <span class="summary-icon"><i data-lucide="x-circle" class="icon-lg" style="color:#dc3545;"></i></span>
                 <span class="summary-count" id="failed-count">0</span>
                 <span class="summary-label">失敗</span>
             </div>
             <div class="summary-item pending">
-                <span class="summary-icon">⏳</span>
+                <span class="summary-icon"><i data-lucide="clock" class="icon-lg" style="color:#ffc107;"></i></span>
                 <span class="summary-count" id="pending-count">0</span>
                 <span class="summary-label">等待中</span>
             </div>
@@ -286,14 +287,14 @@
             <label>上傳圖片 (視覺模型):</label>
             <div class="image-upload-area" id="image-upload-area" onclick="document.getElementById('image-input').click()">
                 <div class="upload-placeholder" id="upload-placeholder">
-                    <span class="upload-icon">📷</span>
+                    <span class="upload-icon"><i data-lucide="camera" class="icon-lg"></i></span>
                     <span>點擊或拖放圖片到此處</span>
                     <span class="upload-hint">支援 JPG、PNG、GIF、WebP 格式</span>
                 </div>
                 <img id="image-preview" class="image-preview" style="display:none;" />
             </div>
             <input type="file" id="image-input" accept="image/*" style="display:none;" onchange="handleImageSelect(event)" />
-            <button class="btn-small btn-danger" id="remove-image-btn" style="display:none; margin-top:10px;" onclick="removeImage()">🗑️ 移除圖片</button>
+            <button class="btn-small btn-danger" id="remove-image-btn" style="display:none; margin-top:10px;" onclick="removeImage()"><i data-lucide="trash-2" class="icon-sm"></i> 移除圖片</button>
         </div>
 
         <div class="input-group">
@@ -306,7 +307,7 @@
         <!-- AI 回覆框架 -->
         <div id="ai-response-container" class="ai-response-container" style="display:none;">
             <div class="ai-response-header">
-                <div class="ai-avatar">🤖</div>
+                <div class="ai-avatar"><i data-lucide="bot" class="icon-lg"></i></div>
                 <div class="ai-info">
                     <span class="ai-name" id="ai-model-name">AI Assistant</span>
                     <span class="ai-status" id="ai-status">思考中...</span>
@@ -320,8 +321,8 @@
                 <div id="ai-content" class="ai-content markdown-body"></div>
             </div>
             <div class="ai-response-footer">
-                <button class="btn-small" onclick="copyAIResponse(this)">📋 複製回覆</button>
-                <button class="btn-small" onclick="toggleRawResponse()">🔧 原始 JSON</button>
+                <button class="btn-small" onclick="copyAIResponse(this)"><i data-lucide="clipboard" class="icon-sm"></i> 複製回覆</button>
+                <button class="btn-small" onclick="toggleRawResponse()"><i data-lucide="code" class="icon-sm"></i> 原始 JSON</button>
             </div>
             <div id="raw-response" class="raw-response" style="display:none;">
                 <pre id="raw-json"></pre>
@@ -341,22 +342,22 @@
     <div class="speech-service-info">
         <div class="feature-grid">
             <div class="feature-card">
-                <div class="feature-icon">🎵</div>
+                <div class="feature-icon"><i data-lucide="music" class="icon-lg"></i></div>
                 <h4>支援格式</h4>
                 <p>WAV, MP3, M4A, OGG, FLAC, WebM</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">🌍</div>
+                <div class="feature-icon"><i data-lucide="globe" class="icon-lg"></i></div>
                 <h4>多語言支援</h4>
                 <p>中文、英文、日文等多種語言</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">⚡</div>
+                <div class="feature-icon"><i data-lucide="zap" class="icon-lg"></i></div>
                 <h4>高效轉錄</h4>
                 <p>基於 Whisper 模型的高精度轉錄</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">📁</div>
+                <div class="feature-icon"><i data-lucide="folder" class="icon-lg"></i></div>
                 <h4>檔案限制</h4>
                 <p>最大支援 50MB 的音訊檔案</p>
             </div>
@@ -365,13 +366,13 @@
 
     <!-- 即時麥克風錄音 -->
     <div class="test-section" style="margin-top: 30px;">
-        <h3>🎙️ 即時麥克風錄音</h3>
+        <h3><i data-lucide="mic" class="icon-sm"></i> 即時麥克風錄音</h3>
         <p style="margin-bottom: 20px; color: #6c757d;">點擊麥克風開始錄音，再次點擊停止並自動轉錄翻譯</p>
 
         <div class="mic-section" style="text-align: center; padding: 30px;">
             <!-- 麥克風按鈕 -->
             <div id="mic-btn" class="mic-button" onclick="toggleMicRecording()">
-                <span class="mic-icon">🎙️</span>
+                <span class="mic-icon"><i data-lucide="mic" class="icon-xl"></i></span>
                 <div class="mic-pulse"></div>
             </div>
             <p id="mic-status" style="margin-top: 15px; font-size: 16px; color: #6c757d;">點擊開始錄音</p>
@@ -391,7 +392,7 @@
                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="mic-enable-translate" checked style="width: 18px; height: 18px; cursor: pointer;" />
-                        <span style="font-weight: 500;">🌐 啟用即時翻譯</span>
+                        <span style="font-weight: 500;"><i data-lucide="globe" class="icon-sm"></i> 啟用即時翻譯</span>
                     </label>
                     <div id="mic-translate-lang-container" style="display: flex; align-items: center; gap: 8px;">
                         <span>翻譯成:</span>
@@ -418,22 +419,22 @@
         <!-- 錄音播放器 -->
         <div id="mic-audio-container" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
             <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                <span style="font-size: 24px;">🎵</span>
+                <span style="font-size: 24px;"><i data-lucide="music" class="icon-lg"></i></span>
                 <div style="flex: 1; min-width: 200px; max-width: 400px;">
                     <audio id="mic-audio-player" controls style="width: 100%; height: 40px;"></audio>
                 </div>
                 <span id="mic-audio-duration" style="font-size: 14px; color: #6c757d;"></span>
             </div>
             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-                <button class="btn" onclick="reTranscribeRecording()">🔄 重新轉錄</button>
-                <button class="btn btn-danger" onclick="clearRecording()">🗑️ 清除錄音</button>
+                <button class="btn" onclick="reTranscribeRecording()"><i data-lucide="refresh-cw" class="icon-sm"></i> 重新轉錄</button>
+                <button class="btn btn-danger" onclick="clearRecording()"><i data-lucide="trash-2" class="icon-sm"></i> 清除錄音</button>
             </div>
         </div>
 
         <!-- 麥克風轉錄結果 -->
         <div id="mic-result-container" class="ai-response-container" style="display:none; margin-top: 25px;">
             <div class="ai-response-header">
-                <span class="ai-model-badge">🎙️ 語音轉文字結果</span>
+                <span class="ai-model-badge"><i data-lucide="mic" class="icon-sm"></i> 語音轉文字結果</span>
                 <span id="mic-result-status" class="ai-status">處理中...</span>
             </div>
             <div id="mic-result" class="ai-response-content" style="min-height: 100px;"></div>
@@ -441,36 +442,36 @@
                 <span id="mic-result-time"></span>
             </div>
             <div class="ai-response-footer">
-                <button class="btn-small" onclick="copyMicResult()">📋 複製原文</button>
+                <button class="btn-small" onclick="copyMicResult()"><i data-lucide="clipboard" class="icon-sm"></i> 複製原文</button>
             </div>
         </div>
 
         <!-- 麥克風翻譯結果 -->
         <div id="mic-translate-container" class="ai-response-container" style="display:none; margin-top: 15px; border-left: 4px solid #17a2b8;">
             <div class="ai-response-header">
-                <span class="ai-model-badge" style="background: #0891b2;">🌐 翻譯結果</span>
+                <span class="ai-model-badge" style="background: #0891b2;"><i data-lucide="globe" class="icon-sm"></i> 翻譯結果</span>
                 <span id="mic-translate-lang" style="font-size: 13px; color: #6c757d;"></span>
             </div>
             <div id="mic-translate-result" class="ai-response-content" style="min-height: 80px;"></div>
             <div class="ai-response-footer">
-                <button class="btn-small" onclick="copyMicTranslate()">📋 複製翻譯</button>
+                <button class="btn-small" onclick="copyMicTranslate()"><i data-lucide="clipboard" class="icon-sm"></i> 複製翻譯</button>
             </div>
         </div>
     </div>
 
     <div class="test-section" style="margin-top: 30px;">
-        <h3>📁 上傳音訊檔案</h3>
+        <h3><i data-lucide="folder" class="icon-sm"></i> 上傳音訊檔案</h3>
 
         <div class="audio-upload-section">
             <div class="audio-upload-area" id="audio-upload-area" onclick="document.getElementById('audio-input').click()">
                 <input type="file" id="audio-input" accept="audio/*" onchange="handleAudioSelect(event)" style="display:none;" />
                 <div id="audio-upload-placeholder" class="upload-placeholder">
-                    <span style="font-size: 64px;">📁</span>
+                    <span style="font-size: 64px;"><i data-lucide="upload" class="icon-xl"></i></span>
                     <p style="font-size: 18px; margin-top: 15px;">點擊或拖放音訊檔案到這裡</p>
                     <p style="font-size: 13px; color: #6c757d; margin-top: 8px;">支援 WAV, MP3, M4A, OGG, FLAC 等格式</p>
                 </div>
                 <div id="audio-file-info" style="display:none;">
-                    <span style="font-size: 48px;">🎵</span>
+                    <span style="font-size: 48px;"><i data-lucide="music" class="icon-xl"></i></span>
                     <p id="audio-file-name" style="font-size: 16px; font-weight: 600; margin-top: 10px;"></p>
                     <p id="audio-file-size" style="font-size: 13px; color: #6c757d;"></p>
                 </div>
@@ -481,7 +482,7 @@
                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="enable-translate" style="width: 18px; height: 18px; cursor: pointer;" />
-                        <span style="font-weight: 500;">🌐 啟用即時翻譯</span>
+                        <span style="font-weight: 500;"><i data-lucide="globe" class="icon-sm"></i> 啟用即時翻譯</span>
                     </label>
                     <div id="translate-lang-container" style="display: none; align-items: center; gap: 8px;">
                         <span>翻譯成:</span>
@@ -506,13 +507,13 @@
 
             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
                 <button id="remove-audio-btn" class="btn btn-danger" style="display:none;" onclick="removeAudio()">移除檔案</button>
-                <button class="btn" onclick="testSpeechToText()">🎤 開始轉錄</button>
+                <button class="btn" onclick="testSpeechToText()"><i data-lucide="mic" class="icon-sm"></i> 開始轉錄</button>
             </div>
         </div>
 
         <div id="speech-result-container" class="ai-response-container" style="display:none; margin-top: 25px;">
             <div class="ai-response-header">
-                <span class="ai-model-badge">🎤 語音轉文字結果</span>
+                <span class="ai-model-badge"><i data-lucide="mic" class="icon-sm"></i> 語音轉文字結果</span>
                 <span id="speech-status" class="ai-status">處理中...</span>
             </div>
             <div id="speech-result" class="ai-response-content" style="min-height: 100px;"></div>
@@ -520,19 +521,19 @@
                 <span id="speech-time"></span>
             </div>
             <div class="ai-response-footer">
-                <button class="btn-small" onclick="copySpeechResult()">📋 複製原文</button>
+                <button class="btn-small" onclick="copySpeechResult()"><i data-lucide="clipboard" class="icon-sm"></i> 複製原文</button>
             </div>
         </div>
 
         <!-- 翻譯結果 -->
         <div id="translate-result-container" class="ai-response-container" style="display:none; margin-top: 15px; border-left: 4px solid #17a2b8;">
             <div class="ai-response-header">
-                <span class="ai-model-badge" style="background: #0891b2;">🌐 翻譯結果</span>
+                <span class="ai-model-badge" style="background: #0891b2;"><i data-lucide="globe" class="icon-sm"></i> 翻譯結果</span>
                 <span id="translate-target-lang" style="font-size: 13px; color: #6c757d;"></span>
             </div>
             <div id="translate-result" class="ai-response-content" style="min-height: 80px;"></div>
             <div class="ai-response-footer">
-                <button class="btn-small" onclick="copyTranslateResult()">📋 複製翻譯</button>
+                <button class="btn-small" onclick="copyTranslateResult()"><i data-lucide="clipboard" class="icon-sm"></i> 複製翻譯</button>
             </div>
         </div>
     </div>
@@ -562,12 +563,12 @@
                     <td><code>/v1/audio/transcriptions/base64</code></td>
                 </tr>
                 <tr>
-                    <td>🌐 文字翻譯</td>
+                    <td><i data-lucide="globe" class="icon-sm"></i> 文字翻譯</td>
                     <td><code>POST</code></td>
                     <td><code>/v1/audio/translate</code></td>
                 </tr>
                 <tr>
-                    <td>🌐 語音轉錄+翻譯</td>
+                    <td><i data-lucide="globe" class="icon-sm"></i> 語音轉錄+翻譯</td>
                     <td><code>POST</code></td>
                     <td><code>/v1/audio/transcribe-and-translate</code></td>
                 </tr>
@@ -638,7 +639,7 @@ console.log('轉錄結果:', result.text);</pre>
 
     <!-- 密碼驗證區域 -->
     <div id="history-login" class="status-card" style="max-width: 400px; margin: 50px auto; text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 20px;">🔐</div>
+        <div style="font-size: 48px; margin-bottom: 20px;"><i data-lucide="shield" class="icon-xl"></i></div>
         <h3 style="margin-bottom: 20px;">需要密碼驗證</h3>
         <p style="color: #666; margin-bottom: 20px;">請輸入管理員密碼以查看歷史對話紀錄</p>
         <div style="display: flex; gap: 10px; justify-content: center;">
@@ -708,7 +709,7 @@ console.log('轉錄結果:', result.text);</pre>
             <div class="ocr-section-body">
                 <div class="ocr-upload-area" id="ocr-upload-area">
                     <div id="ocr-upload-placeholder">
-                        <div class="ocr-upload-icon">📄</div>
+                        <div class="ocr-upload-icon"><i data-lucide="upload" class="icon-xl"></i></div>
                         <div class="ocr-upload-text">拖放圖片或 PDF 到此處</div>
                         <div class="ocr-upload-hint">或點擊選擇檔案</div>
                         <div class="ocr-upload-formats">
@@ -723,7 +724,7 @@ console.log('轉錄結果:', result.text);</pre>
                     </div>
                     <img id="ocr-preview" style="display: none; max-width: 100%; max-height: 350px; border-radius: 12px; border: 2px solid #e2e8f0;" />
                     <div id="ocr-pdf-preview" style="display: none; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 12px;">
-                        <div style="font-size: 64px;">📑</div>
+                        <div style="font-size: 64px;"><i data-lucide="file-text" class="icon-xl"></i></div>
                         <div style="margin-top: 10px; font-weight: bold;" id="ocr-pdf-name"></div>
                     </div>
                 </div>
@@ -732,14 +733,14 @@ console.log('轉錄結果:', result.text);</pre>
                 <!-- 檔案資訊 -->
                 <div id="ocr-file-info" class="ocr-file-info" style="display: none;">
                     <div class="ocr-file-info-row">
-                        <span class="ocr-file-info-label">📁 檔案名稱</span>
+                        <span class="ocr-file-info-label"><i data-lucide="folder" class="icon-sm"></i> 檔案名稱</span>
                         <span class="ocr-file-info-value" id="ocr-file-name"></span>
                     </div>
                     <div class="ocr-file-info-row">
-                        <span class="ocr-file-info-label">📊 檔案大小</span>
+                        <span class="ocr-file-info-label"><i data-lucide="bar-chart-3" class="icon-sm"></i> 檔案大小</span>
                         <span class="ocr-file-info-value" id="ocr-file-size"></span>
                     </div>
-                    <button onclick="clearOcrFile()" class="ocr-remove-btn">🗑️ 移除檔案</button>
+                    <button onclick="clearOcrFile()" class="ocr-remove-btn"><i data-lucide="trash-2" class="icon-sm"></i> 移除檔案</button>
                 </div>
             </div>
         </div>
@@ -747,29 +748,29 @@ console.log('轉錄結果:', result.text);</pre>
         <!-- 右側：設定區域 -->
         <div class="ocr-section">
             <div class="ocr-section-header settings">
-                <span class="ocr-section-icon">⚙️</span>
+                <span class="ocr-section-icon"><i data-lucide="settings" class="icon-sm"></i></span>
                 <span class="ocr-section-title">辨識設定</span>
             </div>
             <div class="ocr-section-body">
                 <!-- 辨識方式選擇 -->
                 <div class="ocr-setting-group">
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">🎯</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="target" class="icon-sm"></i></span>
                         辨識方式
                     </div>
                     <div class="ocr-method-toggle">
                         <button type="button" class="ocr-method-btn active" data-method="ppocrv5" onclick="switchOcrMethod('ppocrv5')">
-                            <span class="ocr-method-icon">📝</span>
+                            <span class="ocr-method-icon"><i data-lucide="file-text" class="icon-sm"></i></span>
                             <span class="ocr-method-name">PP-OCR</span>
                             <span class="ocr-method-desc">傳統 OCR 引擎</span>
                         </button>
                         <button type="button" class="ocr-method-btn" data-method="deepseek" onclick="switchOcrMethod('deepseek')">
-                            <span class="ocr-method-icon">🔮</span>
+                            <span class="ocr-method-icon"><i data-lucide="sparkles" class="icon-sm"></i></span>
                             <span class="ocr-method-name">DeepSeek OCR</span>
                             <span class="ocr-method-desc">GPU 加速高精度</span>
                         </button>
                         <button type="button" class="ocr-method-btn" data-method="vision" onclick="switchOcrMethod('vision')">
-                            <span class="ocr-method-icon">👁️</span>
+                            <span class="ocr-method-icon"><i data-lucide="eye" class="icon-sm"></i></span>
                             <span class="ocr-method-name">視覺模型</span>
                             <span class="ocr-method-desc">LLaVA AI 智能分析</span>
                         </button>
@@ -779,7 +780,7 @@ console.log('轉錄結果:', result.text);</pre>
                 <!-- PP-OCR 模型選擇 (傳統 OCR) -->
                 <div id="ppocrv5-settings" class="ocr-setting-group">
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">🤖</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="bot" class="icon-sm"></i></span>
                         選擇 OCR 模型
                     </div>
                     <select id="ocr-model-select" class="ocr-select" onchange="onOcrModelChange(this)">
@@ -793,14 +794,14 @@ console.log('轉錄結果:', result.text);</pre>
                 <!-- DeepSeek OCR 設定 -->
                 <div id="deepseek-settings" class="ocr-setting-group" style="display: none;">
                     <div class="ocr-vision-model-info" style="margin-bottom: 15px;">
-                        <span class="ocr-vision-badge" style="background: #7c3aed;">🔮 DeepSeek OCR</span>
+                        <span class="ocr-vision-badge" style="background: #7c3aed;"><i data-lucide="sparkles" class="icon-sm"></i> DeepSeek OCR</span>
                         <span class="ocr-vision-hint">GPU 加速高精度辨識，支援複雜文件與手寫</span>
                     </div>
                     <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 8px; padding: 10px; margin-bottom: 15px; font-size: 13px;">
-                        ✅ <strong>提示：</strong>支援圖片（PNG、JPG）及 PDF 檔案。系統會自動偵測 PDF 是否包含可提取文字，若無則自動轉圖片進行 OCR。
+                        <i data-lucide="check-circle" class="icon-sm" style="color:#28a745;"></i> <strong>提示：</strong>支援圖片（PNG、JPG）及 PDF 檔案。系統會自動偵測 PDF 是否包含可提取文字，若無則自動轉圖片進行 OCR。
                     </div>
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">🌍</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="globe" class="icon-sm"></i></span>
                         辨識語言
                     </div>
                     <select id="deepseek-language" class="ocr-select">
@@ -815,7 +816,7 @@ console.log('轉錄結果:', result.text);</pre>
                 <!-- 視覺模型設定 -->
                 <div id="vision-settings" class="ocr-setting-group" style="display: none;">
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">💬</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="message-circle" class="icon-sm"></i></span>
                         分析提示詞
                     </div>
                     <textarea id="ocr-vision-prompt" class="ocr-prompt-input" rows="3" placeholder="例如：請識別圖片中的所有文字 / 分析這張圖表 / 描述圖片內容">請識別並提取圖片中的所有文字內容，保持原有格式排版</textarea>
@@ -823,17 +824,17 @@ console.log('轉錄結果:', result.text);</pre>
                     <div class="ocr-quick-prompts">
                         <span class="ocr-quick-label">快捷提示：</span>
                         <div class="ocr-quick-btns">
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請識別並提取圖片中的所有文字內容，保持原有格式排版')">📝 文字識別</button>
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請詳細描述這張圖片的內容')">📷 描述圖片</button>
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請分析這個圖表的數據和趨勢')">📊 圖表分析</button>
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('這張圖片中有哪些物體？請列出來')">🔍 物體識別</button>
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請用繁體中文翻譯圖片中的文字')">🌐 翻譯文字</button>
-                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請分析這張照片的構圖、曝光、色彩等品質，並給出評分和改進建議')">🎨 照片分析</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請識別並提取圖片中的所有文字內容，保持原有格式排版')"><i data-lucide="file-text" class="icon-xs"></i> 文字識別</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請詳細描述這張圖片的內容')"><i data-lucide="camera" class="icon-xs"></i> 描述圖片</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請分析這個圖表的數據和趨勢')"><i data-lucide="bar-chart-3" class="icon-xs"></i> 圖表分析</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('這張圖片中有哪些物體？請列出來')"><i data-lucide="search" class="icon-xs"></i> 物體識別</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請用繁體中文翻譯圖片中的文字')"><i data-lucide="globe" class="icon-xs"></i> 翻譯文字</button>
+                            <button type="button" class="ocr-quick-btn" onclick="setOcrVisionPrompt('請分析這張照片的構圖、曝光、色彩等品質，並給出評分和改進建議')"><i data-lucide="palette" class="icon-xs"></i> 照片分析</button>
                         </div>
                     </div>
 
                     <div class="ocr-vision-model-info">
-                        <span class="ocr-vision-badge">👁️ LLaVA 7B</span>
+                        <span class="ocr-vision-badge"><i data-lucide="eye" class="icon-sm"></i> LLaVA 7B</span>
                         <span class="ocr-vision-hint">視覺模型處理時間較長，約需 30 秒至 2 分鐘</span>
                     </div>
                 </div>
@@ -841,29 +842,29 @@ console.log('轉錄結果:', result.text);</pre>
                 <!-- 語言選擇 -->
                 <div class="ocr-setting-group">
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">🌐</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="globe" class="icon-sm"></i></span>
                         文件語言
                     </div>
                     <select id="ocr-language" class="ocr-select">
-                        <option value="auto">🔍 自動偵測</option>
+                        <option value="auto">自動偵測</option>
                         <option value="zh">🇹🇼 中文</option>
                         <option value="en">🇺🇸 英文</option>
                         <option value="ja">🇯🇵 日文</option>
                         <option value="ko">🇰🇷 韓文</option>
-                        <option value="mixed">🔄 中英混合</option>
+                        <option value="mixed">中英混合</option>
                     </select>
                 </div>
 
                 <!-- 輸出格式 -->
                 <div class="ocr-setting-group">
                     <div class="ocr-setting-label">
-                        <span class="ocr-setting-label-icon">📋</span>
+                        <span class="ocr-setting-label-icon"><i data-lucide="clipboard" class="icon-sm"></i></span>
                         輸出格式
                     </div>
                     <div class="ocr-checkbox-grid">
                         <label class="ocr-checkbox-item checked">
                             <input type="checkbox" id="ocr-format-text" checked onchange="this.parentElement.classList.toggle('checked', this.checked)">
-                            <span class="ocr-checkbox-text">📝 純文字</span>
+                            <span class="ocr-checkbox-text"><i data-lucide="file-text" class="icon-xs"></i> 純文字</span>
                         </label>
                         <label class="ocr-checkbox-item">
                             <input type="checkbox" id="ocr-format-json" onchange="this.parentElement.classList.toggle('checked', this.checked)">
@@ -878,9 +879,9 @@ console.log('轉錄結果:', result.text);</pre>
 
                 <!-- 開始辨識按鈕 -->
                 <button id="ocr-start-btn" class="ocr-start-btn" onclick="startOcrRecognition()" disabled>
-                    <span class="ocr-start-btn-icon">🔍</span>
+                    <span class="ocr-start-btn-icon"><i data-lucide="search" class="icon-md"></i></span>
                     <span id="ocr-btn-text">開始辨識</span>
-                    <span id="ocr-btn-loading" style="display: none;">⏳ 辨識中...</span>
+                    <span id="ocr-btn-loading" style="display: none;"><i data-lucide="loader" class="icon-sm"></i> 辨識中...</span>
                 </button>
             </div>
         </div>
@@ -890,17 +891,17 @@ console.log('轉錄結果:', result.text);</pre>
     <div class="ocr-result-section">
         <div class="ocr-result-header">
             <div class="ocr-result-title">
-                <span>📋</span>
+                <span><i data-lucide="clipboard" class="icon-sm"></i></span>
                 <span>辨識結果</span>
             </div>
             <div class="ocr-result-actions" id="ocr-download-group" style="display: none;">
                 <select id="ocr-download-format" class="ocr-download-select">
-                    <option value="txt">📄 TXT</option>
+                    <option value="txt">TXT</option>
                     <option value="json">{ } JSON</option>
                     <option value="md"># Markdown</option>
                 </select>
                 <button onclick="downloadOcrResult()" class="ocr-download-btn">
-                    <span>⬇️</span>
+                    <span><i data-lucide="download" class="icon-sm"></i></span>
                     <span>下載</span>
                 </button>
             </div>
@@ -908,7 +909,7 @@ console.log('轉錄結果:', result.text);</pre>
 
         <!-- 結果標籤頁 -->
         <div class="ocr-result-tabs" id="ocr-result-tabs" style="display: none;">
-            <button class="ocr-tab active" onclick="switchOcrResultTab('text')">📝 純文字</button>
+            <button class="ocr-tab active" onclick="switchOcrResultTab('text')"><i data-lucide="file-text" class="icon-xs"></i> 純文字</button>
             <button class="ocr-tab" onclick="switchOcrResultTab('json')">{ } JSON</button>
             <button class="ocr-tab" onclick="switchOcrResultTab('markdown')"># Markdown</button>
         </div>
@@ -916,7 +917,7 @@ console.log('轉錄結果:', result.text);</pre>
         <!-- 結果內容 -->
         <div class="ocr-result-body" id="ocr-result-container">
             <div id="ocr-result-placeholder" class="ocr-result-placeholder">
-                <div class="ocr-result-placeholder-icon">📝</div>
+                <div class="ocr-result-placeholder-icon"><i data-lucide="file-text" class="icon-xl"></i></div>
                 <p class="ocr-result-placeholder-text">上傳文件並點擊「開始辨識」查看結果</p>
             </div>
             <div id="ocr-result-text" class="ocr-result-content" style="display: none;">
@@ -1016,7 +1017,7 @@ console.log('轉錄結果:', result.text);</pre>
 
     <!-- 新增使用者 -->
     <div class="status-card" style="margin-bottom: 20px;">
-        <h3 style="margin-bottom: 15px;">➕ 新增使用者</h3>
+        <h3 style="margin-bottom: 15px;"><i data-lucide="user-plus" class="icon-sm"></i> 新增使用者</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: end;">
             <div class="input-group" style="margin: 0;">
                 <label>帳號</label>
@@ -1036,7 +1037,7 @@ console.log('轉錄結果:', result.text);</pre>
     <!-- 使用者列表 -->
     <div class="status-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0;">📋 使用者列表</h3>
+            <h3 style="margin: 0;"><i data-lucide="clipboard" class="icon-sm"></i> 使用者列表</h3>
             <button class="btn" style="padding: 8px 16px; font-size: 14px;" onclick="loadSystemUsers()">重新整理</button>
         </div>
         <div id="system-users-list">

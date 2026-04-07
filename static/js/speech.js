@@ -103,7 +103,8 @@ async function processRecordedAudio(audioBlob) {
     translateContainer.style.display = 'none';
     resultStatus.textContent = '處理中...';
     resultStatus.classList.add('streaming');
-    resultDiv.innerHTML = '<div class="vision-notice"><div class="notice-icon">🎙️</div><div class="notice-text"><strong>語音轉文字處理中</strong><br>正在分析錄音內容，請稍候...</div></div>';
+    resultDiv.innerHTML = '<div class="vision-notice"><div class="notice-icon">' + lucideIcon('mic', 'icon-lg') + '</div><div class="notice-text"><strong>語音轉文字處理中</strong><br>正在分析錄音內容，請稍候...</div></div>';
+    refreshIcons();
 
     const startTime = Date.now();
 
@@ -144,7 +145,7 @@ async function processRecordedAudio(audioBlob) {
             resultDiv.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(originalText)}</div>`;
         } else if (originalText === '') {
             lastMicResult = '';
-            resultDiv.innerHTML = `<div style="color: #6c757d; text-align: center; padding: 20px;">🔇 未偵測到語音內容</div>`;
+            resultDiv.innerHTML = `<div style="color: #6c757d; text-align: center; padding: 20px;">未偵測到語音內容</div>`;
         } else {
             lastMicResult = JSON.stringify(data, null, 2);
             resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
@@ -165,7 +166,7 @@ async function processRecordedAudio(audioBlob) {
     } catch (error) {
         resultStatus.textContent = '轉錄失敗';
         resultStatus.classList.remove('streaming');
-        resultDiv.innerHTML = `<div style="color: #dc3545;">❌ 錯誤: ${escapeHtml(error.message)}</div>`;
+        resultDiv.innerHTML = `<div style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 錯誤: ${escapeHtml(error.message)}</div>`;
     } finally {
         // 重置按鈕狀態
         micBtn.classList.remove('processing');
@@ -181,10 +182,12 @@ function copyMicResult() {
     if (lastMicResult) {
         navigator.clipboard.writeText(lastMicResult).then(() => {
             const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         });
     }
@@ -195,10 +198,12 @@ function copyMicTranslate() {
     if (lastMicTranslate) {
         navigator.clipboard.writeText(lastMicTranslate).then(() => {
             const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         });
     }
@@ -333,7 +338,8 @@ async function testSpeechToText() {
     translateContainer.style.display = 'none';
     status.textContent = '處理中...';
     status.classList.add('streaming');
-    result.innerHTML = '<div class="vision-notice"><div class="notice-icon">🎤</div><div class="notice-text"><strong>語音轉文字處理中</strong><br>正在分析音訊內容，請稍候...</div></div>';
+    result.innerHTML = '<div class="vision-notice"><div class="notice-icon">' + lucideIcon('mic', 'icon-lg') + '</div><div class="notice-text"><strong>語音轉文字處理中</strong><br>正在分析音訊內容，請稍候...</div></div>';
+    refreshIcons();
     timeSpan.textContent = '';
 
     const startTime = Date.now();
@@ -375,7 +381,7 @@ async function testSpeechToText() {
             result.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(originalText)}</div>`;
         } else if (originalText === '') {
             lastSpeechResult = '';
-            result.innerHTML = `<div style="color: #6c757d; text-align: center; padding: 20px;">🔇 未偵測到語音內容</div>`;
+            result.innerHTML = `<div style="color: #6c757d; text-align: center; padding: 20px;">未偵測到語音內容</div>`;
         } else {
             lastSpeechResult = JSON.stringify(data, null, 2);
             result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
@@ -396,7 +402,7 @@ async function testSpeechToText() {
     } catch (error) {
         status.textContent = '轉錄失敗';
         status.classList.remove('streaming');
-        result.innerHTML = `<div style="color: #dc3545;">❌ 錯誤: ${escapeHtml(error.message)}</div>`;
+        result.innerHTML = `<div style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 錯誤: ${escapeHtml(error.message)}</div>`;
     }
 }
 
@@ -407,10 +413,12 @@ function copySpeechResult() {
     if (lastSpeechResult) {
         navigator.clipboard.writeText(lastSpeechResult).then(() => {
             const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         });
     }
@@ -421,10 +429,12 @@ function copyTranslateResult() {
     if (lastTranslateResult) {
         navigator.clipboard.writeText(lastTranslateResult).then(() => {
             const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         });
     }

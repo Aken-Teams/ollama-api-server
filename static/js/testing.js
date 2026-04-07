@@ -431,6 +431,8 @@ async function loadQuickTestModels() {
             `;
         }).join('');
 
+        refreshIcons();
+
     } catch (error) {
         console.error('載入模型失敗:', error);
         grid.innerHTML = `<div class="model-test-loading" style="color: #dc3545;">載入失敗: ${error.message}</div>`;
@@ -526,7 +528,8 @@ async function testAllModels() {
 
     isTestingAll = true;
     const testAllIcon = document.getElementById('test-all-icon');
-    testAllIcon.textContent = '⏳';
+    testAllIcon.innerHTML = lucideIcon('loader', 'icon-sm');
+    refreshIcons();
 
     // 顯示進度條和摘要
     const progressBar = document.getElementById('test-progress-bar');
@@ -579,7 +582,8 @@ async function testAllModels() {
     }
 
     isTestingAll = false;
-    testAllIcon.textContent = '▶️';
+    testAllIcon.innerHTML = lucideIcon('play', 'icon-sm');
+    refreshIcons();
 }
 
 // 更新測試摘要
@@ -651,7 +655,7 @@ async function testChatCompletion() {
         aiStatus.textContent = '處理中（視覺模型需要較長時間）...';
         aiContent.innerHTML = `
             <div class="vision-notice">
-                <div class="notice-icon">🖼️</div>
+                <div class="notice-icon">${lucideIcon('image', 'icon-lg')}</div>
                 <div class="notice-text">
                     <strong>視覺模型處理中</strong><br>
                     由於視覺模型 (72B 參數) 需要處理圖片資訊，回應時間可能需要 30 秒至 2 分鐘，請耐心等候...
@@ -791,13 +795,13 @@ async function testChatCompletion() {
                 }
                 aiTime.textContent = `${(elapsed / 1000).toFixed(1)}s`;
             } else if (data.error) {
-                aiContent.innerHTML = `<div style="color: #dc3545;">❌ 錯誤: ${escapeHtml(data.error.message || JSON.stringify(data.error))}</div>`;
+                aiContent.innerHTML = `<div style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 錯誤: ${escapeHtml(data.error.message || JSON.stringify(data.error))}</div>`;
                 aiStatus.textContent = '發生錯誤';
                 aiStatus.classList.remove('streaming');
             }
         }
     } catch (error) {
-        aiContent.innerHTML = `<div style="color: #dc3545;">❌ 連接錯誤: ${escapeHtml(error.message)}</div>`;
+        aiContent.innerHTML = `<div style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 連接錯誤: ${escapeHtml(error.message)}</div>`;
         aiStatus.textContent = '連接失敗';
         aiStatus.classList.remove('streaming');
     }
@@ -809,10 +813,12 @@ function copyAIResponse(btn) {
     const cleanedContent = cleanModelOutput(lastAIContent);
     if (cleanedContent) {
         navigator.clipboard.writeText(cleanedContent).then(() => {
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製!';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製!';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         }).catch(err => {
             alert('複製失敗: ' + err.message);

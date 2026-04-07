@@ -181,7 +181,7 @@ async function analyzeVisionImage() {
     resultStatus.classList.add('streaming');
     resultDiv.innerHTML = `
         <div class="vision-notice">
-            <div class="notice-icon">👁️</div>
+            <div class="notice-icon">${lucideIcon('eye', 'icon-lg')}</div>
             <div class="notice-text">
                 <strong>視覺模型處理中</strong><br>
                 由於視覺模型 (72B 參數) 需要處理圖片資訊，回應時間可能需要 30 秒至 2 分鐘，請耐心等候...
@@ -238,10 +238,10 @@ async function analyzeVisionImage() {
                 resultStatus.textContent = '服務異常';
                 resultDiv.innerHTML = `
                     <div style="color: #dc3545; margin-bottom: 15px;">
-                        <strong>🔧 視覺模型服務異常</strong>
+                        <strong>${lucideIcon('wrench', 'icon-sm')} 視覺模型服務異常</strong>
                     </div>
                     <div class="vision-notice" style="background: #fff3cd; border-color: #ffc107;">
-                        <div class="notice-icon">⚠️</div>
+                        <div class="notice-icon">${lucideIcon('alert-triangle', 'icon-lg')}</div>
                         <div class="notice-text">
                             <strong>問題：</strong> 視覺模型處理圖片時發生錯誤<br><br>
                             <strong>可能的原因：</strong><br>
@@ -278,10 +278,10 @@ async function analyzeVisionImage() {
         if (errorMsg.includes('504') || errorMsg.includes('gateway time-out') || errorMsg.includes('timeout')) {
             resultDiv.innerHTML = `
                 <div style="color: #dc3545; margin-bottom: 15px;">
-                    <strong>⏱️ 視覺模型服務暫時無法使用</strong>
+                    <strong>${lucideIcon('clock', 'icon-sm')} 視覺模型服務暫時無法使用</strong>
                 </div>
                 <div class="vision-notice" style="background: #fff3cd; border-color: #ffc107;">
-                    <div class="notice-icon">🔧</div>
+                    <div class="notice-icon">${lucideIcon('wrench', 'icon-lg')}</div>
                     <div class="notice-text">
                         <strong>狀態：</strong> LLaVA 7B 模型服務目前回應超時<br><br>
                         <strong>可能的原因：</strong><br>
@@ -295,7 +295,7 @@ async function analyzeVisionImage() {
                     </div>
                 </div>`;
         } else {
-            resultDiv.innerHTML = `<div style="color: #dc3545;">❌ 錯誤: ${escapeHtml(error.message)}</div>`;
+            resultDiv.innerHTML = `<div style="color: #dc3545;">${lucideIcon('x-circle', 'icon-sm')} 錯誤: ${escapeHtml(error.message)}</div>`;
         }
     }
 }
@@ -305,10 +305,12 @@ function copyVisionResult() {
     if (lastVisionResult) {
         navigator.clipboard.writeText(lastVisionResult).then(() => {
             const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ 已複製';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = lucideIcon('check', 'icon-sm') + ' 已複製';
+            refreshIcons();
             setTimeout(() => {
-                btn.textContent = originalText;
+                btn.innerHTML = originalHTML;
+                refreshIcons();
             }, 2000);
         });
     }
