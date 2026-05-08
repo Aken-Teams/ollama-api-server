@@ -2,6 +2,8 @@
 // KEYS MODULE
 // ==========================================================================
 
+let apiKeysCache = [];
+
 async function loadApiKeys() {
     const container = document.getElementById('api-keys-list');
     container.innerHTML = '<p style="color: #666;">載入中...</p>';
@@ -14,6 +16,7 @@ async function loadApiKeys() {
 
         const data = await response.json();
         const keys = data.keys || [];
+        apiKeysCache = keys;
 
         if (keys.length === 0) {
             container.innerHTML = '<p style="color: #666;">尚無 API Key</p>';
@@ -51,6 +54,10 @@ async function loadApiKeys() {
                             <td style="padding: 12px; font-size: 13px; color: #666;">${key.created_at ? new Date(key.created_at).toLocaleDateString('zh-TW') : '-'}</td>
                             <td style="padding: 12px; font-size: 13px; color: #666;">${key.last_used_at ? new Date(key.last_used_at).toLocaleString('zh-TW') : '<span style="color: #ccc;">從未</span>'}</td>
                             <td style="padding: 12px; white-space: nowrap;">
+                                <button onclick="editApiKey(${key.id})"
+                                        style="padding: 5px 10px; margin-right: 4px; border: 1px solid #f59e0b; border-radius: 4px; cursor: pointer; background: #fff7ed; color: #ea580c; font-size: 12px;">
+                                    編輯
+                                </button>
                                 <button onclick="toggleKeyStatus(${key.id}, ${!key.is_active})"
                                         style="padding: 5px 10px; margin-right: 4px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: ${key.is_active ? '#fff3cd' : '#d4edda'}; font-size: 12px;">
                                     ${key.is_active ? '停用' : '啟用'}
@@ -135,6 +142,57 @@ function copyNewKey() {
     navigator.clipboard.writeText(keyValue).then(() => {
         alert('API Key 已複製到剪貼簿！');
     });
+}
+
+// Edit API Key (description / is_admin / is_active)
+let keyEditingId = null;
+
+function editApiKey(keyId) {
+    const key = apiKeysCache.find(k => k.id === keyId);
+    if (!key) {
+        alert('找不到該 API Key，請重新整理');
+        return;
+    }
+    keyEditingId = key.id;
+    document.getElementById('key-edit-username').textContent = key.username;
+    document.getElementById('key-edit-description').value = key.description || '';
+    document.getElementById('key-edit-admin').checked = !!key.is_admin;
+    document.getElementById('key-edit-active').checked = !!key.is_active;
+    const editor = document.getElementById('key-editor');
+    editor.style.display = 'block';
+    editor.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeKeyEditor() {
+    document.getElementById('key-editor').style.display = 'none';
+    keyEditingId = null;
+}
+
+async function saveApiKey() {
+    if (!keyEditingId) return;
+
+    const body = {
+        description: document.getElementById('key-edit-description').value.trim(),
+        is_admin: document.getElementById('key-edit-admin').checked,
+        is_active: document.getElementById('key-edit-active').checked
+    };
+
+    try {
+        const response = await authFetch(`${API_URL}/api/keys/${keyEditingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || '儲存失敗');
+
+        alert('API Key 已更新');
+        closeKeyEditor();
+        loadApiKeys();
+    } catch (error) {
+        alert('儲存失敗: ' + error.message);
+    }
 }
 
 // Toggle key active status

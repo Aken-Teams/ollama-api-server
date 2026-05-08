@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="/static/css/footer.css">
     <link rel="stylesheet" href="/static/css/redesign.css">
     <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+    <link rel="stylesheet" href="/static/css/rwd.css">
 </head>
 <body>
 <!-- Login Overlay -->
@@ -55,6 +56,11 @@
 <div id="main-content" class="main-content">
 
 <!-- Left Sidebar -->
+<!-- RWD: hamburger toggle (only shown ≤768px via CSS) -->
+<button class="rwd-hamburger" id="rwd-hamburger" type="button" aria-label="開啟選單"
+        onclick="document.body.classList.toggle('sidebar-open')">☰</button>
+<div class="rwd-sidebar-backdrop" onclick="document.body.classList.remove('sidebar-open')"></div>
+
 <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo">
         <span class="logo-dot"></span>
@@ -63,7 +69,7 @@
     <div class="sidebar-section-label">主選單</div>
     <ul class="sidebar-nav">
         <li><a class="active" data-tab="dashboard" onclick="switchTab('dashboard', this)"><span class="nav-icon">&#9632;</span><span>總覽</span></a></li>
-        <li><a data-tab="tools" onclick="switchTab('tools', this)"><span class="nav-icon">&#9881;</span><span>AI工具</span></a></li>
+        <li><a data-tab="tools" onclick="switchTab('tools', this)"><span class="nav-icon">&#9881;</span><span>AI 模型</span></a></li>
         <li id="admin-nav" style="display: none;"><a data-tab="admin" onclick="switchTab('admin', this)"><span class="nav-icon">&#9874;</span><span>管理</span></a></li>
         <li id="sysconfig-nav" style="display: none;"><a data-tab="sysconfig" onclick="switchTab('sysconfig', this)"><span class="nav-icon">&#9881;</span><span>系統設定</span></a></li>
         <li><a data-tab="docs" onclick="switchTab('docs', this)"><span class="nav-icon">&#9776;</span><span>文檔</span></a></li>
@@ -81,7 +87,7 @@
 <div style="display:none;">
     <div class="tabs">
         <button class="tab active" id="dashboard-tab-compat">總覽</button>
-        <button class="tab" id="tools-tab-compat">AI 工具</button>
+        <button class="tab" id="tools-tab-compat">AI 模型</button>
         <button class="tab" id="admin-tab" style="display: none;">管理</button>
         <button class="tab" id="sysconfig-tab" style="display: none;">系統設定</button>
         <button class="tab" id="docs-tab-compat">文檔</button>
@@ -240,6 +246,76 @@
                 <span class="summary-icon"><i data-lucide="clock" class="icon-lg" style="color:#ffc107;"></i></span>
                 <span class="summary-count" id="pending-count">0</span>
                 <span class="summary-label">等待中</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 效能比較 Benchmark ===== -->
+    <div class="test-section">
+        <h3>📊 效能比較</h3>
+        <p class="hint" style="color:#64748b;font-size:13px;margin-top:-6px;">
+            把同一個 prompt 同時打給多個模型，比較 TTFT（首字延遲）／總時間／吞吐（tokens/s）。
+        </p>
+
+        <div class="bench-control">
+            <div class="bench-row">
+                <label class="bench-label">Prompt</label>
+                <select id="bench-preset" onchange="applyBenchPreset()">
+                    <option value="">— 載入預設 prompt —</option>
+                    <option value="intro">自我介紹（短回應）</option>
+                    <option value="translate">中翻英</option>
+                    <option value="code">程式生成（Python）</option>
+                    <option value="reason">數學推理</option>
+                    <option value="summary">長文摘要</option>
+                </select>
+            </div>
+            <textarea id="bench-prompt" rows="3"
+                placeholder="輸入 prompt，或從上方下拉選預設"
+                style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+
+            <div class="bench-row" style="margin-top:10px;">
+                <label class="bench-label">最大 tokens</label>
+                <input type="number" id="bench-max-tokens" value="300" min="50" max="2000" style="width:90px;">
+                <label class="bench-label" style="margin-left:14px;">重複次數</label>
+                <input type="number" id="bench-repeat" value="1" min="1" max="5" style="width:60px;">
+                <span class="hint" style="margin-left:auto;font-size:11px;color:#94a3b8;">取平均；越多越穩</span>
+            </div>
+
+            <div id="bench-models" class="bench-models" style="margin-top:10px;">
+                <span class="hint">載入模型中…</span>
+            </div>
+
+            <div class="bench-row" style="margin-top:14px;">
+                <button class="btn btn-primary" id="bench-run-btn" onclick="runBenchmark()">▶ 開始 benchmark</button>
+                <button class="btn btn-secondary" onclick="benchSelectAll(true)">全選</button>
+                <button class="btn btn-secondary" onclick="benchSelectAll(false)">全部取消</button>
+                <span id="bench-status" class="hint" style="margin-left:auto;"></span>
+            </div>
+        </div>
+
+        <div id="bench-results" class="bench-results" style="display:none;margin-top:18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <strong>結果（依總時間排序）</strong>
+                <div>
+                    <button class="btn btn-secondary btn-small" onclick="exportBench('csv')">匯出 CSV</button>
+                    <button class="btn btn-secondary btn-small" onclick="exportBench('md')">匯出 Markdown</button>
+                </div>
+            </div>
+            <div class="bench-table-wrap">
+                <table class="bench-table" id="bench-table">
+                    <thead>
+                        <tr>
+                            <th>模型</th>
+                            <th>來源</th>
+                            <th>TTFT</th>
+                            <th>總時間</th>
+                            <th>tokens</th>
+                            <th>tok/s</th>
+                            <th>輸出</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -693,18 +769,17 @@ console.log('轉錄結果:', result.text);</pre>
 
 <div id="tool-ocr" class="sub-content" style="display: none;">
 <div id="ocr">
-    <h2>OCR 文件辨識服務</h2>
-    <p style="color: #636e72; margin-bottom: 30px; font-size: 16px;">
-        上傳圖片文件，使用 AI 技術自動辨識文字內容，支援多種語言與輸出格式。
+    <h2>📝 OCR 文件辨識（三模型測試）</h2>
+    <p style="color: #636e72; margin-bottom: 20px; font-size: 14px;">
+        拖放或點擊上傳圖片/PDF，點擊對應模型按鈕即可測試。建議使用 <strong>DeepSeek OCR</strong>。
     </p>
 
-    <!-- 主要內容區 -->
-    <div class="ocr-page-container">
-        <!-- 左側：上傳區域 -->
-        <div class="ocr-section">
-            <div class="ocr-section-header upload">
-                <span class="ocr-section-icon">📤</span>
-                <span class="ocr-section-title">文件上傳</span>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <div id="ocr-dropzone" style="border: 2px dashed #cbd5e0; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; margin-bottom: 15px;">
+            <div id="ocr-drop-placeholder">
+                <div style="font-size: 48px; margin-bottom: 10px;">📤</div>
+                <div style="font-weight: 600; color: #334155; margin-bottom: 6px;">拖放圖片或 PDF 到這裡</div>
+                <div style="font-size: 13px; color: #64748b;">或點擊選擇檔案（JPG / PNG / GIF / WebP / BMP / PDF，最大 20MB）</div>
             </div>
             <div class="ocr-section-body">
                 <div class="ocr-upload-area" id="ocr-upload-area">
@@ -742,8 +817,11 @@ console.log('轉錄結果:', result.text);</pre>
                     </div>
                     <button onclick="clearOcrFile()" class="ocr-remove-btn"><i data-lucide="trash-2" class="icon-sm"></i> 移除檔案</button>
                 </div>
+                <div id="ocr-preview-meta" style="margin-top: 10px; font-size: 13px; color: #475569;"></div>
+                <button type="button" id="ocr-clear-btn" style="margin-top: 10px; padding: 6px 14px; border: 1px solid #ef4444; background: #fff; color: #ef4444; border-radius: 6px; cursor: pointer; font-size: 13px;">🗑️ 清除</button>
             </div>
         </div>
+        <input type="file" id="ocr-simple-file" accept="image/*,.pdf,application/pdf" style="display: none;" />
 
         <!-- 右側：設定區域 -->
         <div class="ocr-section">
@@ -950,7 +1028,552 @@ console.log('轉錄結果:', result.text);</pre>
                 <div class="ocr-stat-label">使用模型</div>
             </div>
         </div>
+        <pre id="ocr-simple-text" style="white-space: pre-wrap; word-wrap: break-word; font-family: 'SF Mono', Consolas, monospace; font-size: 14px; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 0; max-height: 500px; overflow: auto;"></pre>
+        <div id="ocr-simple-md" style="display: none; background: #fafafa; padding: 15px; border-radius: 8px; max-height: 600px; overflow: auto; font-size: 14px; line-height: 1.7;"></div>
+        <div id="ocr-ai-status" style="margin-top: 10px; font-size: 13px; color: #64748b;"></div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* === Benchmark 效能比較 === */
+        .bench-control { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
+        .bench-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .bench-label { font-size: 13px; color: #475569; font-weight: 600; min-width: 80px; }
+        .bench-row select, .bench-row input[type=number] {
+            padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit;
+        }
+        .bench-models { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px;
+                        background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 38px; }
+        .bench-model-chip { display: inline-flex; align-items: center; gap: 6px;
+                            padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 999px;
+                            background: #fff; cursor: pointer; font-size: 12px;
+                            transition: all 0.1s; user-select: none; }
+        .bench-model-chip input { margin: 0; cursor: pointer; }
+        .bench-model-chip:hover { background: #f1f5f9; }
+        .bench-model-chip.checked { background: #dbeafe; border-color: #60a5fa; color: #1d4ed8; font-weight: 600; }
+
+        .bench-results { animation: qckFade 0.2s ease-out; }
+        .bench-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+        .bench-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .bench-table th { text-align: left; padding: 10px 12px; background: #f8fafc;
+                          border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 600; font-size: 12px; }
+        .bench-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .bench-table tr:last-child td { border-bottom: none; }
+        .bench-table tr.bench-winner td { background: #f0fdf4; }
+        .bench-table tr.bench-loser td { background: #fef2f2; }
+        .bench-table tr.bench-failed td { background: #fef2f2; color: #b91c1c; }
+        .bench-num { font-family: 'SF Mono', Consolas, monospace; font-weight: 600; }
+        .bench-output {
+            font-size: 12px; color: #475569; max-width: 280px;
+            white-space: normal; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .bench-source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
+                              font-size: 11px; font-weight: 600; }
+        .bench-source-badge.cloud { background: #dbeafe; color: #1d4ed8; }
+        .bench-source-badge.local { background: #dcfce7; color: #166534; }
+        .btn-small { padding: 4px 12px !important; font-size: 12px !important; }
+
+        .markdown-pretty { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif; color: #1e293b; line-height: 1.75; font-size: 14.5px; }
+        .markdown-pretty h1 { font-size: 22px; margin: 18px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; color: #0f172a; }
+        .markdown-pretty h2 { font-size: 18px; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; color: #1e40af; }
+        .markdown-pretty h3 { font-size: 16px; margin: 16px 0 8px; color: #334155; font-weight: 700; }
+        .markdown-pretty h4 { font-size: 14.5px; margin: 12px 0 6px; color: #475569; }
+        .markdown-pretty p { margin: 8px 0; }
+        .markdown-pretty strong { color: #0f172a; font-weight: 700; }
+        .markdown-pretty em { color: #475569; }
+        .markdown-pretty code { background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-family: 'SF Mono', Consolas, monospace; font-size: 13px; color: #be185d; }
+        .markdown-pretty pre { background: #0f172a; color: #e2e8f0; padding: 14px 16px; border-radius: 8px; overflow: auto; font-size: 13px; }
+        .markdown-pretty pre code { background: transparent; color: inherit; padding: 0; }
+        .markdown-pretty ul, .markdown-pretty ol { padding-left: 22px; margin: 8px 0; }
+        .markdown-pretty li { margin: 3px 0; }
+        .markdown-pretty blockquote { border-left: 4px solid #7c3aed; padding: 6px 14px; margin: 10px 0; background: #f5f3ff; color: #5b21b6; border-radius: 0 6px 6px 0; }
+        .markdown-pretty hr { border: none; border-top: 1px dashed #cbd5e0; margin: 20px 0; }
+        .markdown-pretty table { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 13.5px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #e2e8f0; }
+        .markdown-pretty thead th { background: linear-gradient(180deg, #f1f5f9, #e2e8f0); padding: 10px 12px; text-align: left; font-weight: 700; color: #1e293b; border-bottom: 2px solid #cbd5e0; }
+        .markdown-pretty tbody tr:nth-child(odd) { background: #fff; }
+        .markdown-pretty tbody tr:nth-child(even) { background: #f8fafc; }
+        .markdown-pretty tbody tr:hover { background: #fef3c7; }
+        .markdown-pretty tbody td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .markdown-pretty a { color: #2563eb; text-decoration: none; border-bottom: 1px solid #93c5fd; }
+        .markdown-pretty a:hover { border-bottom-color: #2563eb; }
+        .ocr-ai-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #e5e7eb; border-top-color: #7c3aed; border-radius: 50%; animation: ocr-spin 0.7s linear infinite; vertical-align: -2px; margin-right: 4px; }
+    </style>
+    <script>
+        (function() {
+            if (window.pdfjsLib) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+            const dropzone = document.getElementById('ocr-dropzone');
+            const fileInput = document.getElementById('ocr-simple-file');
+            const placeholder = document.getElementById('ocr-drop-placeholder');
+            const previewWrap = document.getElementById('ocr-preview-wrap');
+            const previewImg = document.getElementById('ocr-preview-img');
+            const previewPdf = document.getElementById('ocr-preview-pdf');
+            const previewCanvas = document.getElementById('ocr-preview-pdf-canvas');
+            const previewPdfInfo = document.getElementById('ocr-preview-pdf-info');
+            const previewMeta = document.getElementById('ocr-preview-meta');
+            const clearBtn = document.getElementById('ocr-clear-btn');
+            if (!dropzone || dropzone._bound) return;
+            dropzone._bound = true;
+
+            function setPreview(file) {
+                if (!file) { resetPreview(); return; }
+                placeholder.style.display = 'none';
+                previewWrap.style.display = 'block';
+                previewMeta.textContent = `${file.name} · ${(file.size/1024).toFixed(1)} KB · ${file.type || 'unknown'}`;
+                if (file.type && file.type.startsWith('image/')) {
+                    previewPdf.style.display = 'none';
+                    const reader = new FileReader();
+                    reader.onload = e => { previewImg.src = e.target.result; previewImg.style.display = 'block'; };
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+                    previewImg.style.display = 'none';
+                    previewPdf.style.display = 'block';
+                    previewPdfInfo.textContent = 'PDF 載入中…';
+                    if (!window.pdfjsLib) { previewPdfInfo.textContent = 'PDF 預覽套件載入中，請稍候'; return; }
+                    const reader = new FileReader();
+                    reader.onload = async e => {
+                        try {
+                            const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(e.target.result) }).promise;
+                            previewPdfInfo.textContent = `共 ${pdf.numPages} 頁（預覽第 1 頁）`;
+                            const page = await pdf.getPage(1);
+                            const viewport = page.getViewport({ scale: 1.3 });
+                            previewCanvas.width = viewport.width;
+                            previewCanvas.height = viewport.height;
+                            await page.render({ canvasContext: previewCanvas.getContext('2d'), viewport }).promise;
+                        } catch (err) {
+                            previewPdfInfo.textContent = 'PDF 預覽失敗：' + err.message;
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    previewPdf.style.display = 'none';
+                    previewImg.style.display = 'none';
+                }
+            }
+            function resetPreview() {
+                placeholder.style.display = 'block';
+                previewWrap.style.display = 'none';
+                previewImg.src = '';
+                previewImg.style.display = 'none';
+                previewPdf.style.display = 'none';
+                previewMeta.textContent = '';
+                previewPdfInfo.textContent = '';
+                const ctx = previewCanvas.getContext('2d');
+                ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                fileInput.value = '';
+            }
+            window.clearOcrSimple = function(e) { if (e) e.stopPropagation(); resetPreview(); };
+            clearBtn.addEventListener('click', (e) => { e.stopPropagation(); resetPreview(); });
+
+            dropzone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', () => setPreview(fileInput.files[0]));
+
+            ['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, e => {
+                e.preventDefault(); e.stopPropagation();
+                dropzone.style.background = '#ede9fe';
+                dropzone.style.borderColor = '#7c3aed';
+            }));
+            ['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, e => {
+                e.preventDefault(); e.stopPropagation();
+                dropzone.style.background = '#f8fafc';
+                dropzone.style.borderColor = '#cbd5e0';
+            }));
+            dropzone.addEventListener('drop', e => {
+                const f = e.dataTransfer.files[0];
+                if (!f) return;
+                const dt = new DataTransfer();
+                dt.items.add(f);
+                fileInput.files = dt.files;
+                setPreview(f);
+            });
+        })();
+
+        async function runSimpleOcr(model) {
+            const file = document.getElementById('ocr-simple-file').files[0];
+            if (!file) { alert('請先上傳檔案'); return; }
+            const lang = document.getElementById('ocr-simple-lang').value;
+            const status = document.getElementById('ocr-simple-status');
+            const resultBox = document.getElementById('ocr-simple-result');
+            const meta = document.getElementById('ocr-simple-meta');
+            const textEl = document.getElementById('ocr-simple-text');
+            const btns = document.querySelectorAll('.ocr-simple-btn');
+            btns.forEach(b => b.disabled = true);
+
+            // Inject progress UI once
+            let progress = document.getElementById('ocr-progress-wrap');
+            if (!progress) {
+                progress = document.createElement('div');
+                progress.id = 'ocr-progress-wrap';
+                progress.style.cssText = 'background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:15px;';
+                progress.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <div class="ocr-spinner" style="width:18px;height:18px;border:3px solid #e5e7eb;border-top-color:#7c3aed;border-radius:50%;animation:ocr-spin 0.8s linear infinite;"></div>
+                        <div id="ocr-progress-label" style="font-weight:600;color:#334155;">準備中…</div>
+                        <div id="ocr-progress-pct" style="margin-left:auto;font-weight:700;color:#7c3aed;">0%</div>
+                    </div>
+                    <div style="background:#e5e7eb;height:8px;border-radius:4px;overflow:hidden;">
+                        <div id="ocr-progress-bar" style="background:linear-gradient(90deg,#7c3aed,#a78bfa);height:100%;width:0%;transition:width 0.3s ease;"></div>
+                    </div>
+                    <div id="ocr-progress-pages" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    <div id="ocr-progress-jobid" style="margin-top:10px;font-size:11px;color:#94a3b8;font-family:monospace;"></div>
+                `;
+                status.parentNode.insertBefore(progress, status);
+                const style = document.createElement('style');
+                style.textContent = '@keyframes ocr-spin{to{transform:rotate(360deg)}}';
+                document.head.appendChild(style);
+            }
+            progress.style.display = 'block';
+            const progLabel = document.getElementById('ocr-progress-label');
+            const progPct = document.getElementById('ocr-progress-pct');
+            const progBar = document.getElementById('ocr-progress-bar');
+            const progPages = document.getElementById('ocr-progress-pages');
+            const progJob = document.getElementById('ocr-progress-jobid');
+            progLabel.textContent = `${model} 提交中…`;
+            progPct.textContent = '0%';
+            progBar.style.width = '0%';
+            progPages.innerHTML = '';
+            progJob.textContent = '';
+
+            status.style.display = 'none';
+            resultBox.style.display = 'block';
+            meta.innerHTML = `<div><strong>模型：</strong>${model}</div><div><strong>狀態：</strong>提交中</div>`;
+            textEl.textContent = '';
+
+            function setPageBadge(n, state) {
+                let b = document.getElementById(`ocr-pg-${n}`);
+                if (!b) {
+                    b = document.createElement('div');
+                    b.id = `ocr-pg-${n}`;
+                    b.style.cssText = 'width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;font-weight:600;transition:all 0.2s;';
+                    b.textContent = n;
+                    progPages.appendChild(b);
+                }
+                if (state === 'pending') { b.style.background = '#f1f5f9'; b.style.color = '#64748b'; b.style.border = '1px solid #e2e8f0'; b.textContent = n; }
+                else if (state === 'processing') { b.style.background = '#fef3c7'; b.style.color = '#92400e'; b.style.border = '2px solid #f59e0b'; b.innerHTML = '⏳'; }
+                else if (state === 'done') { b.style.background = '#dcfce7'; b.style.color = '#166534'; b.style.border = '1px solid #22c55e'; b.innerHTML = '✓'; }
+                else if (state === 'error') { b.style.background = '#fee2e2'; b.style.color = '#991b1b'; b.style.border = '1px solid #ef4444'; b.innerHTML = '✗'; }
+            }
+
+            const t0 = performance.now();
+            const headers = { 'Authorization': `Bearer ${window.MASTER_API_KEY || 'pj-admin-zhpjaiaoi-2024'}` };
+
+            try {
+                // Submit
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('model', model);
+                fd.append('language', lang);
+                const submitRes = await fetch(`${window.API_URL || ''}/v1/ocr/submit`, { method: 'POST', body: fd, headers });
+                if (!submitRes.ok) {
+                    const t = await submitRes.text();
+                    progLabel.textContent = '❌ 提交失敗';
+                    status.style.display = 'block';
+                    status.style.background = '#fee2e2';
+                    status.style.borderColor = '#ef4444';
+                    status.style.color = '#991b1b';
+                    status.textContent = `❌ HTTP ${submitRes.status}: ${t.substring(0, 400)}`;
+                    return;
+                }
+                const { job_id } = await submitRes.json();
+                progJob.textContent = 'Job ID: ' + job_id;
+                localStorage.setItem('ocr_last_job', JSON.stringify({ job_id, model, filename: file.name, t: Date.now() }));
+                progLabel.textContent = '📄 已提交，等待處理…';
+
+                // Poll
+                let totalPages = 0;
+                let lastCompleted = 0;
+                let currentMarked = 0;
+                const renderedPages = {};
+                while (true) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    let res, job;
+                    try {
+                        res = await fetch(`${window.API_URL || ''}/v1/ocr/jobs/${job_id}`, { headers });
+                        if (res.status === 404) {
+                            progLabel.textContent = '❌ Job 已遺失（伺服器可能重啟過）';
+                            status.style.display = 'block';
+                            status.style.background = '#fee2e2';
+                            status.style.borderColor = '#ef4444';
+                            status.style.color = '#991b1b';
+                            status.textContent = `Job ${job_id.substring(0,8)}… 在伺服器記憶體中找不到。請重新上傳檔案再試。`;
+                            break;
+                        }
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        job = await res.json();
+                    } catch (err) {
+                        progLabel.textContent = '⚠ 連線波動，重試中…';
+                        continue;
+                    }
+
+                    if (job.status === 'rendering') {
+                        progLabel.textContent = '📄 PDF 轉圖片中…';
+                    } else if (job.status === 'processing' || job.status === 'done') {
+                        if (job.total_pages && job.total_pages !== totalPages) {
+                            totalPages = job.total_pages;
+                            for (let i = 1; i <= totalPages; i++) setPageBadge(i, 'pending');
+                        }
+                        // Mark completed pages and append text
+                        for (let i = lastCompleted; i < (job.pages || []).length; i++) {
+                            const p = job.pages[i];
+                            const isErr = /^\[辨識(失敗|錯誤)/.test(p.text);
+                            setPageBadge(p.page, isErr ? 'error' : 'done');
+                            renderedPages[p.page] = p.label ? `--- ${p.label} ---\n${p.text}` : p.text;
+                        }
+                        lastCompleted = (job.pages || []).length;
+                        // Update current processing badge
+                        if (job.current_page && job.current_page > lastCompleted && job.status === 'processing') {
+                            if (currentMarked !== job.current_page) {
+                                setPageBadge(job.current_page, 'processing');
+                                currentMarked = job.current_page;
+                            }
+                        }
+                        const ordered = Object.keys(renderedPages).map(Number).sort((a, b) => a - b);
+                        textEl.textContent = ordered.map(n => renderedPages[n]).join('\n\n');
+
+                        const pct = totalPages ? Math.round((lastCompleted / totalPages) * 100) : 0;
+                        progPct.textContent = pct + '%';
+                        progBar.style.width = pct + '%';
+                        if (job.status === 'processing') {
+                            progLabel.textContent = `🔍 ${job.model_name || model} 正在辨識第 ${job.current_page || lastCompleted + 1}/${totalPages} 頁`;
+                        }
+                    }
+
+                    if (job.status === 'done') {
+                        const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+                        progLabel.textContent = '✅ 辨識完成';
+                        progPct.textContent = '100%';
+                        progBar.style.width = '100%';
+                        meta.innerHTML = `
+                            <div><strong>模型：</strong>${job.model_name || model}</div>
+                            <div><strong>前端耗時：</strong>${elapsed}s</div>
+                            <div><strong>後端耗時：</strong>${(job.processing_time_ms/1000).toFixed(2)}s</div>
+                            <div><strong>頁數：</strong>${job.total_pages}</div>
+                            <div><strong>信心度：</strong>${job.confidence ?? '-'}</div>
+                            <div><strong>字元：</strong>${job.total_chars ?? '-'}</div>
+                        `;
+                        textEl.textContent = job.full_text || textEl.textContent;
+                        localStorage.removeItem('ocr_last_job');
+                        const aiBtn = document.getElementById('ocr-ai-run');
+                        if (aiBtn) {
+                            aiBtn.dataset.jobId = job_id;
+                            aiBtn.disabled = false;
+                            aiBtn.textContent = '🤖 用 DeepSeek 整理成 Markdown';
+                        }
+                        // Detect failed pages + render retry banner
+                        renderOcrRetryBanner(job, model, file);
+                        // Auto-trigger AI format unless user disabled it
+                        const autoAi = document.getElementById('ocr-auto-ai');
+                        if (aiBtn && (!autoAi || autoAi.checked)) {
+                            setTimeout(() => { if (!aiBtn.disabled) aiBtn.click(); }, 400);
+                        } else {
+                            const mdHint = document.getElementById('ocr-simple-md');
+                            if (mdHint) mdHint.innerHTML = '<div style="color:#94a3b8;">點上方「🤖 用 DeepSeek 整理成 Markdown」按鈕，讓 AI 自動提取匯款資訊並整理。</div>';
+                        }
+                        setTimeout(() => { progress.style.display = 'none'; }, 3000);
+                        break;
+                    }
+                    if (job.status === 'error') {
+                        progLabel.textContent = '❌ 錯誤：' + (job.error || '未知');
+                        // Offer retry with alternative models
+                        renderOcrRetryBanner({pages: [{page:1, text:'[辨識失敗: ' + (job.error||'') + ']'}]}, model, file);
+                        break;
+                    }
+                }
+            } catch (e) {
+                progLabel.textContent = '❌ 錯誤：' + e.message;
+            } finally {
+                btns.forEach(b => b.disabled = false);
+            }
+        }
+    
+        // OCR tabs + AI format
+        (function() {
+            document.addEventListener('click', async (e) => {
+                const tabBtn = e.target.closest('.ocr-tab-btn');
+                if (tabBtn) {
+                    document.querySelectorAll('.ocr-tab-btn').forEach(b => {
+                        b.style.borderBottom = '3px solid transparent';
+                        b.style.color = '#64748b';
+                    });
+                    tabBtn.style.borderBottom = '3px solid #7c3aed';
+                    tabBtn.style.color = '#7c3aed';
+                    const isMd = tabBtn.dataset.tab === 'md';
+                    document.getElementById('ocr-simple-text').style.display = isMd ? 'none' : 'block';
+                    document.getElementById('ocr-simple-md').style.display = isMd ? 'block' : 'none';
+                }
+                if (e.target.id === 'ocr-ai-run') {
+                    const btn = e.target;
+                    const jobId = btn.dataset.jobId;
+                    if (!jobId) return;
+                    const statusEl = document.getElementById('ocr-ai-status');
+                    const mdEl = document.getElementById('ocr-simple-md');
+                    btn.disabled = true;
+                    btn.textContent = '⏳ AI 串流中…';
+                    statusEl.innerHTML = '<span class="ocr-ai-spinner"></span> 正在請 DeepSeek 串流整理…';
+                    mdEl.classList.add('markdown-pretty');
+                    mdEl.innerHTML = '<div style="color:#64748b;">連線中…</div>';
+                    document.getElementById('ocr-tab-md').click();
+                    const headers = { 'Authorization': `Bearer ${window.MASTER_API_KEY || 'pj-admin-zhpjaiaoi-2024'}` };
+                    try {
+                        await fetch(`${window.API_URL || ''}/v1/ocr/jobs/${jobId}/format`, { method: 'POST', headers });
+                        const t0 = performance.now();
+                        let lastLen = 0;
+                        while (true) {
+                            await new Promise(r => setTimeout(r, 900));
+                            const r = await fetch(`${window.API_URL || ''}/v1/ocr/jobs/${jobId}`, { headers });
+                            if (!r.ok) { statusEl.textContent = '❌ 查詢失敗'; break; }
+                            const j = await r.json();
+                            const md = j.formatted_markdown || '';
+                            const running = j.ai_format_status === 'running' || j.ai_format_status === 'queued';
+                            // Render incrementally
+                            mdEl.innerHTML = renderMarkdown(md + (running ? ' ▋' : ''));
+                            if (md.length !== lastLen) {
+                                lastLen = md.length;
+                                mdEl.scrollTop = mdEl.scrollHeight;
+                            }
+                            const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+                            if (j.ai_format_status === 'done') {
+                                const u = j.ai_format_usage || {};
+                                statusEl.innerHTML = `✅ 整理完成 · ${elapsed}s · 輸入 ${u.prompt_tokens||'?'} / 輸出 ${u.completion_tokens||'?'} tokens
+                                    <button onclick="navigator.clipboard.writeText(document.getElementById('ocr-simple-md-raw').value).then(()=>{this.textContent='已複製 ✓'})" style="margin-left:8px;padding:4px 12px;border:1px solid #cbd5e0;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">📋 複製 Markdown</button>
+                                    <button onclick="exportOcrMarkdownPdf(this)" style="margin-left:4px;padding:4px 12px;border:1px solid #ef4444;background:#fff;color:#ef4444;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📄 匯出 PDF</button>`;
+                                // Hidden textarea holding raw markdown for copying
+                                let raw = document.getElementById('ocr-simple-md-raw');
+                                if (!raw) {
+                                    raw = document.createElement('textarea');
+                                    raw.id = 'ocr-simple-md-raw';
+                                    raw.style.display = 'none';
+                                    mdEl.parentNode.appendChild(raw);
+                                }
+                                raw.value = md;
+                                btn.textContent = '🔄 重新整理';
+                                btn.disabled = false;
+                                break;
+                            }
+                            if (j.ai_format_status === 'error') {
+                                statusEl.textContent = '❌ ' + (j.ai_format_error || '整理失敗');
+                                mdEl.innerHTML = '<div style="color:#991b1b;">' + (j.ai_format_error || '錯誤') + '</div>';
+                                btn.textContent = '🔄 再試一次';
+                                btn.disabled = false;
+                                break;
+                            }
+                            statusEl.innerHTML = `<span class="ocr-ai-spinner"></span> 串流中 · ${elapsed}s · 已接收 ${md.length} 字`;
+                        }
+                    } catch (err) {
+                        statusEl.textContent = '❌ ' + err.message;
+                        btn.disabled = false;
+                        btn.textContent = '🔄 再試一次';
+                    }
+                }
+            });
+
+            // Render a retry banner showing failure summary and alternative models
+            window.renderOcrRetryBanner = function(job, currentModel, file) {
+                const wrap = document.getElementById('ocr-simple-result');
+                if (!wrap) return;
+                let banner = document.getElementById('ocr-retry-banner');
+                if (banner) banner.remove();
+                const failed = (job.pages || []).filter(p => /^\[辨識(失敗|錯誤)/.test(p.text));
+                if (!failed.length) return;
+                banner = document.createElement('div');
+                banner.id = 'ocr-retry-banner';
+                banner.style.cssText = 'margin-top:15px;padding:12px 14px;background:#fff7ed;border:1px solid #fb923c;border-radius:8px;color:#9a3412;font-size:13.5px;';
+                const pageList = failed.map(p => '第 ' + p.page + ' 頁').join('、');
+                const altModels = [
+                    {id:'deepseek-ocr', name:'🔮 DeepSeek', color:'#7c3aed'},
+                    {id:'paddleocr-remote', name:'🟦 PaddleOCR', color:'#0ea5e9'},
+                    {id:'pp-ocrv5', name:'📝 PP-OCRv5', color:'#3b82f6'},
+                    {id:'llava-ocr', name:'👁️ Qwen-VL', color:'#059669'},
+                ].filter(m => m.id !== currentModel);
+                banner.innerHTML = `
+                    <div style="font-weight:600;margin-bottom:6px;">⚠ ${failed.length} 頁辨識失敗（${pageList}）· 目前使用 ${currentModel}</div>
+                    <div style="margin-bottom:8px;color:#92400e;">試試其他模型重新辨識：</div>
+                    <div id="ocr-retry-btns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                `;
+                wrap.appendChild(banner);
+                const btnRow = banner.querySelector('#ocr-retry-btns');
+                altModels.forEach(m => {
+                    const b = document.createElement('button');
+                    b.textContent = '用 ' + m.name + ' 重跑全部';
+                    b.style.cssText = `padding:6px 14px;border:1px solid ${m.color};background:#fff;color:${m.color};border-radius:6px;cursor:pointer;font-weight:600;font-size:12.5px;`;
+                    b.onclick = () => {
+                        // Re-inject the original file into the file input and trigger the model
+                        if (file && window.DataTransfer) {
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            const fi = document.getElementById('ocr-simple-file');
+                            if (fi) fi.files = dt.files;
+                        }
+                        banner.remove();
+                        runSimpleOcr(m.id);
+                    };
+                    btnRow.appendChild(b);
+                });
+            };
+
+            // Export the currently-rendered markdown as PDF
+            window.exportOcrMarkdownPdf = function(btn) {
+                const src = document.getElementById('ocr-simple-md');
+                if (!src || !src.innerHTML) { alert('尚無可匯出的內容'); return; }
+                if (!window.html2pdf) { alert('PDF 元件尚未載入，請稍候'); return; }
+                const origText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = '⏳ 產生中…';
+                // Clone into a clean A4-width container with the same CSS class so styles apply
+                const wrap = document.createElement('div');
+                wrap.className = 'markdown-pretty';
+                wrap.style.cssText = 'padding: 24px 28px; width: 760px; background: #fff; color: #1e293b;';
+                const title = document.createElement('h1');
+                const filename = (document.querySelector('#ocr-preview-meta')?.textContent || '').split('·')[0].trim() || 'OCR 整理結果';
+                title.textContent = filename;
+                wrap.appendChild(title);
+                const meta = document.createElement('div');
+                meta.style.cssText = 'font-size: 12px; color: #64748b; margin-bottom: 18px; border-bottom: 1px dashed #cbd5e0; padding-bottom: 10px;';
+                meta.textContent = '產生時間：' + new Date().toLocaleString('zh-TW');
+                wrap.appendChild(meta);
+                const body = document.createElement('div');
+                body.innerHTML = src.innerHTML.replace(/▋/g, '');
+                wrap.appendChild(body);
+                document.body.appendChild(wrap);
+                const fname = (filename.replace(/[\/\\?%*:|"<>]/g, '_') || 'ocr_result') + '.pdf';
+                window.html2pdf().set({
+                    margin: [12, 12, 16, 12],
+                    filename: fname,
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                }).from(wrap).save().then(() => {
+                    document.body.removeChild(wrap);
+                    btn.disabled = false;
+                    btn.textContent = '✓ 已匯出';
+                    setTimeout(() => { btn.textContent = origText; }, 2000);
+                }).catch(err => {
+                    document.body.removeChild(wrap);
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                    alert('匯出失敗：' + err.message);
+                });
+            };
+
+            // Pretty markdown renderer (uses marked.js if available, falls back otherwise)
+            window.renderMarkdown = function(md) {
+                if (!md) return '<div style="color:#94a3b8;">尚無內容</div>';
+                if (window.marked) {
+                    try {
+                        window.marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+                        return window.marked.parse(md);
+                    } catch (e) {}
+                }
+                // Fallback escape + basic
+                return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            };
+        })();
+</script>
 </div>
 </div> <!-- End tool-ocr -->
 </div> <!-- End tools -->
@@ -963,6 +1586,7 @@ console.log('轉錄結果:', result.text);</pre>
     <button class="admin-sub-tab active" onclick="switchAdminSubTab(this, 'keys')">API Key 管理</button>
     <button class="admin-sub-tab" onclick="switchAdminSubTab(this, 'users')">使用者管理</button>
     <button class="admin-sub-tab" onclick="switchAdminSubTab(this, 'permissions')">權限管理</button>
+    <button class="admin-sub-tab" onclick="switchAdminSubTab(this, 'usage')">使用紀錄</button>
 </div>
 
 <div id="keys">
@@ -1007,6 +1631,36 @@ console.log('轉錄結果:', result.text);</pre>
         </div>
         <div id="api-keys-list">
             <p style="color: #666;">載入中...</p>
+        </div>
+    </div>
+
+    <!-- API Key 編輯 Modal -->
+    <div id="key-editor" class="status-card" style="display: none; margin-top: 20px; border-left: 4px solid #17a2b8;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">編輯 API Key — <span id="key-edit-username" style="color: #17a2b8;"></span></h3>
+            <button onclick="closeKeyEditor()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+        </div>
+
+        <div class="input-group">
+            <label>用途描述</label>
+            <input type="text" id="key-edit-description" placeholder="例如：MES 系統、知識庫機器人">
+        </div>
+
+        <div style="margin: 15px 0;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="key-edit-admin"> 設為管理員
+            </label>
+        </div>
+
+        <div style="margin: 15px 0;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="key-edit-active"> 啟用
+            </label>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="saveApiKey()">儲存</button>
+            <button class="btn" onclick="closeKeyEditor()">取消</button>
         </div>
     </div>
 </div>
@@ -1115,6 +1769,72 @@ console.log('轉錄結果:', result.text);</pre>
             <button class="btn" onclick="savePermissions()">儲存權限</button>
             <button class="btn btn-secondary" onclick="resetPermissions()">重置為無限制</button>
         </div>
+    </div>
+</div>
+
+<!-- 使用紀錄 -->
+<div id="usage" style="display: none;">
+    <h2>使用紀錄</h2>
+    <p style="color: #666; margin-bottom: 20px;">追蹤所有 API 呼叫紀錄，可依使用者、端點與時間範圍篩選。</p>
+
+    <!-- 統計摘要 -->
+    <div class="status-card" style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">📊 使用者統計（最近
+                <select id="usage-summary-days" onchange="loadUsageSummary()" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px;">
+                    <option value="1">1 天</option>
+                    <option value="7" selected>7 天</option>
+                    <option value="30">30 天</option>
+                    <option value="90">90 天</option>
+                </select>
+                ）
+            </h3>
+            <div>
+                <span id="usage-retention-info" style="color: #999; font-size: 13px; margin-right: 12px;"></span>
+                <button class="btn" style="padding: 8px 16px; font-size: 14px;" onclick="loadUsageSummary()">重新整理</button>
+                <button class="btn" style="padding: 8px 16px; font-size: 14px; background: #fee; color: #c53030; border: 1px solid #fc8181; margin-left: 6px;" onclick="manualPruneUsageLogs()">清理舊紀錄</button>
+            </div>
+        </div>
+        <div id="usage-summary-list">
+            <p style="color: #999;">載入中...</p>
+        </div>
+    </div>
+
+    <!-- 篩選列 -->
+    <div class="status-card" style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 15px 0;">🔍 紀錄明細</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div class="input-group" style="margin: 0;">
+                <label>使用者</label>
+                <input type="text" id="usage-filter-username" placeholder="留空 = 全部">
+            </div>
+            <div class="input-group" style="margin: 0;">
+                <label>端點關鍵字</label>
+                <input type="text" id="usage-filter-endpoint" placeholder="例如 /v1/chat">
+            </div>
+            <div class="input-group" style="margin: 0;">
+                <label>狀態</label>
+                <select id="usage-filter-status" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px;">
+                    <option value="">全部</option>
+                    <option value="ok">成功</option>
+                    <option value="error">錯誤</option>
+                </select>
+            </div>
+            <div class="input-group" style="margin: 0;">
+                <label>近 N 天</label>
+                <select id="usage-filter-days" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px;">
+                    <option value="">不限</option>
+                    <option value="1">1 天</option>
+                    <option value="7" selected>7 天</option>
+                    <option value="30">30 天</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadUsageLogs()">查詢</button>
+        </div>
+        <div id="usage-logs-list" style="margin-top: 16px;">
+            <p style="color: #999;">載入中...</p>
+        </div>
+        <div id="usage-logs-pager" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;"></div>
     </div>
 </div>
 
@@ -1385,6 +2105,7 @@ for name, status in response.json()["endpoints"].items():
     <span class="company">設計單位：智合科技</span>
 </div>
 </div>
+    <script src="/static/js/store.js"></script>
     <script src="/static/js/orbital.js"></script>
     <script src="/static/js/app.js"></script>
     <script src="/static/js/utils.js"></script>
@@ -1401,5 +2122,22 @@ for name, status in response.json()["endpoints"].items():
     <script src="/static/js/stats.js"></script>
     <script src="/static/js/ocr.js"></script>
     <script src="/static/js/permissions.js"></script>
+    <script src="/static/js/usage.js"></script>
+
+    <!-- RWD: close mobile drawer when nav item is tapped -->
+    <script>
+        document.addEventListener('click', function (e) {
+            const a = e.target.closest('.sidebar-nav a');
+            if (a && window.matchMedia('(max-width: 768px)').matches) {
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+        // Close drawer on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+    </script>
 </body>
 </html>

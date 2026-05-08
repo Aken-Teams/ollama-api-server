@@ -29,8 +29,14 @@ async function checkAuth() {
         // Restore user from localStorage
         try {
             const savedUser = localStorage.getItem('pj_user');
-            if (savedUser) currentUser = JSON.parse(savedUser);
-            currentRole = localStorage.getItem('pj_role') || null;
+            const savedRole = localStorage.getItem('pj_role') || null;
+            const userObj = savedUser ? JSON.parse(savedUser) : null;
+            if (window.AppStore) {
+                if (userObj) AppStore.set('user', userObj);
+                AppStore.set('role', savedRole);
+            }
+            if (userObj) currentUser = userObj;
+            currentRole = savedRole;
         } catch (e) {}
 
         // Verify session is still valid
@@ -81,15 +87,25 @@ async function handleLogin(event) {
 
         if (response.ok) {
             const data = await response.json();
+            const role = data.user.is_admin ? 'admin' : 'user';
+
+            // Mirror to AppStore (preferred) — subscribers will update legacy let aliases
+            if (window.AppStore) {
+                AppStore.set('isAuthenticated', true);
+                AppStore.set('apiKey', data.api_key);
+                AppStore.set('user', data.user);
+                AppStore.set('role', role);
+            }
+            // Legacy direct assignment (kept for any code path that hasn't subscribed yet)
             isAuthenticated = true;
             currentApiKey = data.api_key;
             currentUser = data.user;
-            currentRole = data.user.is_admin ? 'admin' : 'user';
+            currentRole = role;
 
             localStorage.setItem('pj_authenticated', 'true');
             localStorage.setItem('pj_api_key', data.api_key);
             localStorage.setItem('pj_user', JSON.stringify(data.user));
-            localStorage.setItem('pj_role', currentRole);
+            localStorage.setItem('pj_role', role);
 
             showMainContent();
         } else {
@@ -111,6 +127,12 @@ function clearSession() {
     localStorage.removeItem('pj_api_key');
     localStorage.removeItem('pj_user');
     localStorage.removeItem('pj_role');
+    if (window.AppStore) {
+        AppStore.set('isAuthenticated', false);
+        AppStore.set('apiKey', '');
+        AppStore.set('user', null);
+        AppStore.set('role', null);
+    }
     isAuthenticated = false;
     currentApiKey = '';
     currentUser = null;
@@ -232,6 +254,7 @@ async function loadSystemUsers() {
                 <td style="padding: 10px;">
                     <button class="btn" style="padding: 4px 10px; font-size: 12px; margin-right: 5px;" onclick="toggleUserAdmin(${u.id}, ${!u.is_admin})">${u.is_admin ? '取消管理員' : '設為管理員'}</button>
                     <button class="btn ${u.is_active ? 'btn-secondary' : 'btn-primary'}" style="padding: 4px 10px; font-size: 12px; margin-right: 5px;" onclick="toggleUserActive(${u.id}, ${!u.is_active})">${u.is_active ? '停用' : '啟用'}</button>
+                    <button class="btn" style="padding: 4px 10px; font-size: 12px; margin-right: 5px; background: #fff7ed; color: #ea580c; border: 1px solid #f59e0b;" onclick="viewUserUsage('${u.username}')">查看紀錄</button>
                     <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteSystemUser(${u.id}, '${u.username}')">刪除</button>
                 </td>
             </tr>`;

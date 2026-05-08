@@ -23,6 +23,7 @@ function processImageFile(file) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
+        if (window.AppStore) AppStore.set('uploadedImage', e.target.result);
         uploadedImageBase64 = e.target.result;
         const preview = document.getElementById('image-preview');
         const placeholder = document.getElementById('upload-placeholder');
@@ -38,6 +39,7 @@ function processImageFile(file) {
 
 // 移除圖片
 function removeImage() {
+    if (window.AppStore) AppStore.set('uploadedImage', null);
     uploadedImageBase64 = null;
     const preview = document.getElementById('image-preview');
     const placeholder = document.getElementById('upload-placeholder');
@@ -122,6 +124,7 @@ function handleVisionImageFile(file) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
+        if (window.AppStore) AppStore.set('visionImage', e.target.result);
         visionImageBase64 = e.target.result;
         const preview = document.getElementById('vision-image-preview');
         const placeholder = document.getElementById('vision-upload-placeholder');
@@ -138,6 +141,7 @@ function handleVisionImageFile(file) {
 
 // 移除視覺模型圖片
 function removeVisionImage() {
+    if (window.AppStore) AppStore.set('visionImage', null);
     visionImageBase64 = null;
     const preview = document.getElementById('vision-image-preview');
     const placeholder = document.getElementById('vision-upload-placeholder');
@@ -257,6 +261,7 @@ async function analyzeVisionImage() {
                 return;
             }
 
+            if (window.AppStore) AppStore.set('lastVisionResult', content);
             lastVisionResult = content;
             resultDiv.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(content)}</div>`;
 
@@ -265,8 +270,10 @@ async function analyzeVisionImage() {
                 resultTokens.textContent = `Tokens: ${data.usage.prompt_tokens || 0} + ${data.usage.completion_tokens || 0} = ${data.usage.total_tokens || 0}`;
             }
         } else {
-            lastVisionResult = JSON.stringify(data, null, 2);
-            resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            const dump = JSON.stringify(data, null, 2);
+            if (window.AppStore) AppStore.set('lastVisionResult', dump);
+            lastVisionResult = dump;
+            resultDiv.innerHTML = `<pre>${dump}</pre>`;
         }
 
     } catch (error) {

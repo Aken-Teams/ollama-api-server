@@ -9,6 +9,7 @@ async function loadModelOptions() {
         const data = await response.json();
 
         if (data.data && data.data.length > 0) {
+            if (window.AppStore) AppStore.set('models', data.data);
             modelsData = data.data;
             select.innerHTML = data.data.map(model => {
                 const name = model.info ? model.info.name : model.id;
@@ -55,11 +56,23 @@ function showModelInfo() {
 
     // 檢查是否為視覺模型，顯示/隱藏圖片上傳區域
     const imageSection = document.getElementById('image-upload-section');
-    const modelId = selectedId || '';
-    const isVisionModel = modelId && (modelId.toLowerCase().includes('vl') || modelId.toLowerCase().includes('vision'));
     if (imageSection) {
-        imageSection.style.display = isVisionModel ? 'block' : 'none';
+        imageSection.style.display = isVisionCapable(model) ? 'block' : 'none';
     }
+}
+
+// 偵測模型是否支援視覺（從 features / id / family 多重判斷）
+function isVisionCapable(model) {
+    if (!model) return false;
+    const id = (model.id || '').toLowerCase();
+    if (/\b(vl|vision|llava|omni|mllama|pixtral|paligemma|qwen2\.5-vl|qwen3-vl|gemma3|gemma4|nemotron3)\b/.test(id)) return true;
+    const info = model.info || {};
+    const blob = (
+        (info.features || []).join(' ') + ' ' +
+        (info.description || '') + ' ' +
+        (info.name || '')
+    ).toLowerCase();
+    return /視覺|多模態|影像|圖文|mmproj|vision|multimodal|image\s*input|omni/.test(blob);
 }
 
 // 儲存上傳的圖片 Base64

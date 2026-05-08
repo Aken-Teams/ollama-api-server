@@ -23,3 +23,20 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Node / E2E
+node_modules/
+e2e-tests/node_modules/
+e2e-tests/test-results/
+e2e-tests/playwright-report/
+test-results/
+
+# Runtime data
+app.log
+uploads/
+export/
+
+# Backups
+*.backup
+*.backup-*
+index.html.backup*

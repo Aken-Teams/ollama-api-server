@@ -121,7 +121,7 @@ async function processRecordedAudio(audioBlob) {
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${currentApiKey}`
+                'Authorization': `Bearer ${window.AppStore ? AppStore.get('apiKey') : currentApiKey}`
             },
             body: formData
         });
@@ -357,7 +357,7 @@ async function testSpeechToText() {
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${currentApiKey}`
+                'Authorization': `Bearer ${window.AppStore ? AppStore.get('apiKey') : currentApiKey}`
             },
             body: formData
         });
@@ -471,5 +471,14 @@ const providerGuides = {
         endpoint: "https://api.deepseek.com/v1",
         link: "https://platform.deepseek.com/api_keys",
         linkText: "前往 DeepSeek 申請 API Key"
+    },
+    "MLX": {
+        label: "Apple MLX",
+        badgeClass: "mlx",
+        color: "#f97316",
+        guide: "Apple Silicon 原生加速 (MLX)",
+        endpoint: `${window.location.origin}/v1`,
+        link: null,
+        linkText: null
     },
 };

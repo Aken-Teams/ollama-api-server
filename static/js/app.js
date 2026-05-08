@@ -1,5 +1,10 @@
 // ==========================================================================
 // APP - Global state & initialization
+// ----------------------------------------------------------------------------
+// NOTE: Shared state has been moved into AppStore (store.js). The `let` bindings
+//   below are kept as backward-compatibility aliases — old code that reads
+//   `currentApiKey` / `modelsData` / etc still works. Writes should go through
+//   AppStore.set('apiKey', value) so subscribers (UI, status badge) update.
 // ==========================================================================
 
 const API_URL = window.location.origin;
@@ -12,21 +17,21 @@ const EXTERNAL_URL = (window.location.hostname === 'localhost' || window.locatio
 let currentPage = 0;
 const pageSize = 10;
 
-// Authentication
-let currentApiKey = localStorage.getItem('pj_api_key') || '';
-let currentUser = JSON.parse(localStorage.getItem('pj_user') || 'null');
-let currentRole = localStorage.getItem('pj_role') || null;
-let isAuthenticated = localStorage.getItem('pj_authenticated') === 'true';
+// ---- Auth (mirrored to AppStore) ----
+let currentApiKey = (window.AppStore ? AppStore.get('apiKey') : (localStorage.getItem('pj_api_key') || ''));
+let currentUser   = (window.AppStore ? AppStore.get('user')   : JSON.parse(localStorage.getItem('pj_user') || 'null'));
+let currentRole   = (window.AppStore ? AppStore.get('role')   : (localStorage.getItem('pj_role') || null));
+let isAuthenticated = (window.AppStore ? AppStore.get('isAuthenticated') : (localStorage.getItem('pj_authenticated') === 'true'));
 
 // Auto-refresh
 let autoRefreshEnabled = true;
 let autoRefreshInterval = null;
 
-// Models
-let modelsData = [];
+// ---- Models (mirrored to AppStore) ----
+let modelsData = (window.AppStore ? AppStore.get('models') : []);
 
-// Image upload
-let uploadedImageBase64 = null;
+// ---- Image upload (mirrored to AppStore) ----
+let uploadedImageBase64 = (window.AppStore ? AppStore.get('uploadedImage') : null);
 
 // Microphone / recording
 let mediaRecorder = null;
@@ -38,9 +43,28 @@ let lastMicResult = '';
 let lastMicTranslate = '';
 let lastRecordedBlob = null;
 
-// Vision
-let visionImageBase64 = null;
-let lastVisionResult = '';
+// ---- Vision (mirrored to AppStore) ----
+let visionImageBase64 = (window.AppStore ? AppStore.get('visionImage') : null);
+let lastVisionResult  = (window.AppStore ? AppStore.get('lastVisionResult') : '');
+
+// ---- AppStore subscriptions: keep `let` aliases in sync when other code
+//      writes via AppStore.set(...). One-way: AppStore → let mirror.
+//      Writes from old code that mutate the let directly will NOT propagate
+//      to AppStore — those callers should be migrated to use AppStore.set.
+if (window.AppStore) {
+    AppStore.subscribe('apiKey',           v => { currentApiKey = v; });
+    AppStore.subscribe('user',             v => { currentUser = v; });
+    AppStore.subscribe('role',             v => { currentRole = v; });
+    AppStore.subscribe('isAuthenticated',  v => { isAuthenticated = v; });
+    AppStore.subscribe('models',           v => { modelsData = v; });
+    AppStore.subscribe('uploadedImage',    v => { uploadedImageBase64 = v; });
+    AppStore.subscribe('visionImage',      v => { visionImageBase64 = v; });
+    AppStore.subscribe('lastVisionResult', v => { lastVisionResult = v; });
+    AppStore.subscribe('quickTestModels',  v => { quickTestModels = v; });
+    // lastRawResponse / lastAIContent are declared inside testing.js (file-local).
+    // Writers in testing.js call AppStore.set for debug visibility but app.js does
+    // not mirror them since nothing else in the codebase reads them externally.
+}
 
 // History
 const HISTORY_PASSWORD = '1023';
@@ -53,8 +77,8 @@ let uploadedAudioFile = null;
 let lastTranslateResult = '';
 let lastSpeechResult = '';
 
-// Quick test
-let quickTestModels = [];
+// Quick test (mirrored to AppStore.quickTestModels)
+let quickTestModels = (window.AppStore ? AppStore.get('quickTestModels') : []);
 
 // OCR
 let ocrResultData = null;

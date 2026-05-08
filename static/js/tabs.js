@@ -60,18 +60,22 @@ function switchAdminSubTab(btn, subTabId) {
     });
     btn.classList.add('active');
 
-    // Toggle visibility of keys / users / permissions
+    // Toggle visibility of keys / users / permissions / usage
     var keysDiv = document.getElementById('keys');
     var usersDiv = document.getElementById('users');
     var permDiv = document.getElementById('permissions');
+    var usageDiv = document.getElementById('usage');
     if (keysDiv) keysDiv.style.display = subTabId === 'keys' ? 'block' : 'none';
     if (usersDiv) usersDiv.style.display = subTabId === 'users' ? 'block' : 'none';
     if (permDiv) permDiv.style.display = subTabId === 'permissions' ? 'block' : 'none';
+    if (usageDiv) usageDiv.style.display = subTabId === 'usage' ? 'block' : 'none';
 
     if (subTabId === 'users') {
         loadSystemUsers();
     } else if (subTabId === 'permissions') {
         loadPermissions();
+    } else if (subTabId === 'usage') {
+        if (typeof loadUsage === 'function') loadUsage();
     }
 }
 

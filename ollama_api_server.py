@@ -12,6 +12,7 @@ import json
 import logging
 from contextlib import asynccontextmanager
 import asyncio
+import time
 import httpx
 from datetime import datetime, date
 from collections import defaultdict
@@ -26,6 +27,19 @@ import io
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load .env early so launchd/systemd-style starts pick up the same vars as shell runs
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _fp:
+        for _line in _fp:
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _k, _v = _line.split("=", 1)
+            _k = _k.strip()
+            _v = _v.strip().strip('"').strip("'")
+            os.environ.setdefault(_k, _v)
+
 # Configuration
 # Auto-detect: use localhost for local execution, host.docker.internal for Docker
 _LLAMA_HOST = os.environ.get("LLAMA_HOST", "localhost")
@@ -36,16 +50,15 @@ OLLAMA_ENDPOINTS = [
     f"http://{_LLAMA_HOST}:21181/v1",
     f"http://{_LLAMA_HOST}:21182/v1",
     f"http://{_LLAMA_HOST}:21183/v1",
-    f"http://{_LLAMA_HOST}:21185/v1",
 ]
 
-# Model to endpoint mapping - each model routes to its specific llama.cpp server
+# Model to endpoint mapping - each model routes to its specific llama.cpp / MLX server
 MODEL_ENDPOINT_MAP = {
     "gpt-oss:120b": f"http://{_LLAMA_HOST}:21180/v1",
     "gemma4:31b": f"http://{_LLAMA_HOST}:21181/v1",
     "Qwen3-Embedding-8B": f"http://{_LLAMA_HOST}:21182/v1",
     "bge-reranker-v2-m3": f"http://{_LLAMA_HOST}:21183/v1",
-    "Qwen3.5:122b": f"http://{_LLAMA_HOST}:21185/v1",
+    "mlx-community/Qwen2.5-1.5B-Instruct-4bit": f"http://{_LLAMA_HOST}:21191/v1",
 }
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
@@ -53,16 +66,29 @@ API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
 # DeepSeek API Configuration
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
-DEEPSEEK_MODELS = ["deepseek-chat", "deepseek-reasoner"]
+DEEPSEEK_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
 ENV_FILE_PATH = os.environ.get("ENV_FILE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 # Vision Model Configuration (Local Ollama)
 QWEN_VL_BASE_URL = os.environ.get("QWEN_VL_BASE_URL", f"http://{_OLLAMA_HOST}:11434/v1")
-QWEN_VL_MODELS = ["llava:7b"]
+QWEN_VL_MODELS = ["qwen2.5vl:7b"]
+
+# Remote Qwen3-VL OCR Service (GPU)
+QWEN_VL_OCR_URL = os.environ.get("QWEN_VL_OCR_URL", "http://192.168.0.191:8002")
 
 # Local Ollama Models (text models running on local Ollama)
 OLLAMA_LOCAL_BASE_URL = os.environ.get("OLLAMA_LOCAL_BASE_URL", f"http://{_OLLAMA_HOST}:11434/v1")
-OLLAMA_LOCAL_MODELS = ["qwen2.5:72b"]
+OLLAMA_LOCAL_MODELS = ["gemma3:27b", "gemma4:latest", "nemotron3:33b"]
+
+# Whitelist of models accepted by /v1/chat/completions.
+# llama.cpp ignores the `model` field (it serves whatever is loaded), so without
+# this guard any garbage string would silently route to a random llama.cpp endpoint.
+KNOWN_CHAT_MODELS = (
+    set(MODEL_ENDPOINT_MAP.keys())
+    | set(DEEPSEEK_MODELS)
+    | set(QWEN_VL_MODELS)
+    | set(OLLAMA_LOCAL_MODELS)
+)
 
 # Speech-to-Text API Configuration
 SPEECH_API_BASE_URL = os.environ.get("SPEECH_API_BASE_URL", f"http://{_OLLAMA_HOST}:8131")
@@ -71,6 +97,7 @@ SPEECH_API_BASE_URL = os.environ.get("SPEECH_API_BASE_URL", f"http://{_OLLAMA_HO
 _OCR_HOST = os.environ.get("OCR_HOST", "localhost")
 OCR_API_BASE_URL = os.environ.get("OCR_API_BASE_URL", f"http://{_OCR_HOST}:8132")
 DEEPSEEK_OCR_BASE_URL = os.environ.get("DEEPSEEK_OCR_BASE_URL", "http://192.168.0.191:8001")
+PADDLEOCR_REMOTE_URL = os.environ.get("PADDLEOCR_REMOTE_URL", "http://192.168.0.191:8866")
 OCR_MODELS = {
     "llava-ocr": {
         "name": "LLaVA 7B OCR",
@@ -107,6 +134,13 @@ OCR_MODELS = {
         "features": ["發票格式", "金額辨識", "稅號提取", "結構化輸出"],
         "best_for": "發票、收據、帳單"
     },
+    "paddleocr-remote": {
+        "name": "PaddleOCR (遠端 GPU)",
+        "type": "paddleocr_remote",
+        "description": "192.168.0.191:8866 上的 PaddleOCR Serving，GPU 加速，輸出含逐字信心度",
+        "features": ["GPU 加速", "逐段信心度", "中英文", "印刷文字"],
+        "best_for": "一般印刷文件、掃描文件、多語言文件"
+    },
     "deepseek-ocr": {
         "name": "DeepSeek OCR",
         "type": "deepseek",
@@ -133,39 +167,85 @@ MODEL_INFO = {
         "best_for": "複雜問答、程式碼生成、創意寫作、深度分析",
         "context_length": "131K tokens"
     },
-    "gpt-oss-safeguard:20b": {
-        "name": "GPT-OSS Safeguard 20B",
+    "gemma4:31b": {
+        "name": "Gemma 4 31B-It (llama.cpp)",
         "type": "local",
-        "description": "輕量級安全模型，回應速度快，適合一般對話",
-        "features": ["20B 參數", "快速回應", "安全過濾", "低資源消耗"],
-        "best_for": "日常對話、快速問答、內容審核、客服應用",
+        "description": "Google Gemma 4 指令微調版，支援思考鏈與多模態（mmproj）",
+        "features": ["31B 參數", "Reasoning 模式", "多模態 mmproj", "Q4_K_M 量化"],
+        "best_for": "推理問答、複雜指令、視覺輔助對話",
+        "context_length": "8K tokens"
+    },
+    "gemma4:latest": {
+        "name": "Gemma 4 (Ollama 預設)",
+        "type": "local",
+        "provider": "Ollama",
+        "description": "Ollama 內建的 Gemma 4 預設量化版，啟動快、資源消耗低",
+        "features": ["輕量量化 ~9.6GB", "Ollama 即用", "通用對話", "多語言"],
+        "best_for": "日常對話、快速問答、本機輕量場景",
+        "context_length": "8K tokens"
+    },
+    "gemma3:27b": {
+        "name": "Gemma 3 27B (視覺)",
+        "type": "local",
+        "provider": "Ollama",
+        "description": "Google Gemma 3 27B 多模態模型，支援圖文理解、長上下文",
+        "features": ["27B 參數", "視覺能力", "Q4_K_M", "131K 長上下文"],
+        "best_for": "圖片解讀、長文檔分析、多模態應用",
         "context_length": "131K tokens"
     },
-    "Qwen3.5:122b": {
-        "name": "Qwen 3.5 122B (MoE)",
+    "nemotron3:33b": {
+        "name": "Nemotron 3 33B Omni (視覺)",
         "type": "local",
-        "description": "通義千問 3.5 MoE 模型，122B 參數 10B 激活，兼具高性能與高效率",
-        "features": ["122B 參數", "MoE 架構", "256K 上下文", "FP8 量化"],
-        "best_for": "複雜推理、程式碼生成、多語言對話、長文本分析",
-        "context_length": "256K tokens"
+        "provider": "Ollama",
+        "description": "NVIDIA Nemotron 3 Omni — 33B 多模態模型，支援文字＋影像，128K 上下文",
+        "features": ["33B 參數", "多模態（文字＋影像）", "128K 長上下文", "NVIDIA 訓練"],
+        "best_for": "視覺問答、長文檔推理、跨模態任務、NVIDIA 生態整合",
+        "context_length": "128K tokens"
     },
-    "qwen2.5:72b": {
-        "name": "Qwen 2.5 72B",
+    "mlx-community/Qwen2.5-1.5B-Instruct-4bit": {
+        "name": "Qwen 2.5 1.5B (MLX)",
         "type": "local",
-        "description": "阿里通義千問最新模型，中文能力頂尖",
-        "features": ["72B 參數", "頂尖中文能力", "程式碼專精", "數學推理強"],
-        "best_for": "中文寫作、程式開發、數學計算、知識問答",
+        "provider": "MLX",
+        "description": "Apple MLX 加速的小型 Qwen 模型，啟動極快、超低延遲，適合即時／嵌入式場景",
+        "features": ["1.5B 參數", "4-bit 量化 ~839MB", "Apple Silicon 原生加速", "極低延遲"],
+        "best_for": "即時對話、命名實體擷取、輕量分類、低成本任務",
         "context_length": "32K tokens"
     },
-    "llava:7b": {
-        "name": "LLaVA 7B (視覺)",
+    "Qwen3-Embedding-8B": {
+        "name": "Qwen3 Embedding 8B",
         "type": "local",
-        "description": "本地視覺語言模型，支援圖片理解與多模態對話",
-        "features": ["7B 參數", "視覺理解", "圖片分析", "本地運行"],
-        "best_for": "圖片描述、視覺問答、圖表分析、即時處理",
-        "context_length": "4K tokens"
+        "description": "阿里通義 Qwen3 系列文字嵌入模型，多語言、高品質向量",
+        "features": ["8B 參數", "多語言嵌入", "RAG 檢索", "向量相似度"],
+        "best_for": "RAG / 知識庫向量化、語意搜尋、文本分群",
+        "context_length": "32K tokens"
+    },
+    "bge-reranker-v2-m3": {
+        "name": "BGE Reranker v2 m3",
+        "type": "local",
+        "description": "BAAI 多語言重排序模型，搭配 embedding 提升檢索精度",
+        "features": ["多語言 reranking", "高精度", "輕量快速", "Q8_0 量化"],
+        "best_for": "RAG 第二階段重排序、檢索後過濾",
+        "context_length": "8K tokens"
     },
     # 雲端模型 - DeepSeek API
+    "deepseek-v4-flash": {
+        "name": "DeepSeek V4 Flash",
+        "type": "cloud",
+        "provider": "DeepSeek",
+        "description": "DeepSeek V4 系列輕量版，主打低延遲、高吞吐，適合即時互動",
+        "features": ["雲端服務", "極速回應", "高吞吐", "成本最低"],
+        "best_for": "聊天機器人、即時客服、批次摘要、快速問答",
+        "context_length": "128K tokens"
+    },
+    "deepseek-v4-pro": {
+        "name": "DeepSeek V4 Pro",
+        "type": "cloud",
+        "provider": "DeepSeek",
+        "description": "DeepSeek V4 系列旗艦版，推理與寫作能力顯著優於 Flash",
+        "features": ["雲端服務", "深度推理", "長文本生成", "程式碼/數學專精"],
+        "best_for": "複雜推理、程式碼生成、論文寫作、Agent 任務",
+        "context_length": "128K tokens"
+    },
     "deepseek-chat": {
         "name": "DeepSeek Chat",
         "type": "cloud",
@@ -225,6 +305,9 @@ DEFAULT_ADMIN = {
 # Fallback master API key (used when database is unavailable)
 MASTER_API_KEY = os.environ.get("MASTER_API_KEY", "pj-admin-zhpjaiaoi-2024")
 
+# Usage log retention (days). Older rows are pruned daily.
+USAGE_LOG_RETENTION_DAYS = int(os.environ.get("USAGE_LOG_RETENTION_DAYS", "90"))
+
 
 def generate_api_key() -> str:
     """Generate a secure random API key"""
@@ -234,6 +317,13 @@ def generate_api_key() -> str:
 def hash_api_key(api_key: str) -> str:
     """Hash an API key for secure storage"""
     return hashlib.sha256(api_key.encode()).hexdigest()
+
+
+def _strip_deepseek_noise(text: str) -> str:
+    """Remove debug lines (e.g. 'PATCHES: torch.Size(...)') leaked by DeepSeek OCR."""
+    lines = (text or "").splitlines()
+    cleaned = [ln for ln in lines if not ln.lstrip().startswith(("PATCHES:", "PATCHES："))]
+    return "\n".join(cleaned).strip()
 
 
 async def init_system_users_table():
@@ -317,6 +407,39 @@ async def init_api_keys_table():
                 logger.info("API keys table initialized")
     except Exception as e:
         logger.error(f"Failed to create API keys table: {e}")
+
+
+async def init_usage_logs_table():
+    """Create usage_logs table to track per-request API usage"""
+    if not db_pool:
+        return
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS usage_logs (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(100) NULL,
+                        endpoint VARCHAR(255) NOT NULL,
+                        method VARCHAR(10) NOT NULL,
+                        model VARCHAR(100) NULL,
+                        prompt_tokens INT DEFAULT 0,
+                        completion_tokens INT DEFAULT 0,
+                        total_tokens INT DEFAULT 0,
+                        status_code INT NOT NULL,
+                        response_time_ms INT DEFAULT 0,
+                        ip_address VARCHAR(64) NULL,
+                        error_message VARCHAR(500) NULL,
+                        request_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_username (username),
+                        INDEX idx_endpoint (endpoint),
+                        INDEX idx_request_at (request_at)
+                    )
+                """)
+                logger.info("usage_logs table initialized")
+    except Exception as e:
+        logger.error(f"Failed to create usage_logs table: {e}")
 
 
 async def init_admin_account():
@@ -428,6 +551,7 @@ async def validate_api_key(api_key: str) -> Optional[Dict]:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     authorization: str = Header(None)
 ) -> Optional[Dict]:
@@ -456,6 +580,11 @@ async def get_current_user(
             status_code=401,
             detail="Invalid or inactive API Key"
         )
+
+    # Stash username so the usage-log middleware can pick it up
+    if not getattr(request.state, "usage_extra", None):
+        request.state.usage_extra = {}
+    request.state.usage_extra["username"] = user.get("username")
 
     return user
 
@@ -518,6 +647,7 @@ async def init_db_pool():
         await init_system_users_table()
         await init_api_keys_table()
         await init_user_permissions_table()
+        await init_usage_logs_table()
         await init_admin_account()
 
         # Run database migrations
@@ -533,6 +663,64 @@ async def close_db_pool():
         db_pool.close()
         await db_pool.wait_closed()
         logger.info("MySQL connection pool closed")
+
+
+async def _write_usage_log(
+    username, endpoint, method, model,
+    prompt_tokens, completion_tokens, total_tokens,
+    status_code, response_time_ms, ip_address, error_message
+):
+    """Insert one row into usage_logs (best-effort, swallow errors)."""
+    if not db_pool:
+        return
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    """INSERT INTO usage_logs
+                       (username, endpoint, method, model,
+                        prompt_tokens, completion_tokens, total_tokens,
+                        status_code, response_time_ms, ip_address, error_message)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (username, endpoint, method, model,
+                     prompt_tokens or 0, completion_tokens or 0, total_tokens or 0,
+                     status_code, response_time_ms, ip_address,
+                     (error_message[:500] if error_message else None))
+                )
+    except Exception as e:
+        logger.error(f"Failed to write usage log: {e}")
+
+
+def record_usage_extra(request: Request, **fields):
+    """Endpoints call this to attach business fields (model, tokens, error)
+    that the middleware will flush into usage_logs after the response."""
+    extra = getattr(request.state, "usage_extra", None)
+    if extra is None:
+        extra = {}
+        request.state.usage_extra = extra
+    extra.update({k: v for k, v in fields.items() if v is not None})
+
+
+async def log_chat_usage(raw_request: Request, user: Dict, model: str,
+                         prompt_tokens: int, completion_tokens: int,
+                         start_time: float, success: bool,
+                         error_message: Optional[str] = None):
+    """Write a usage_logs row for a streaming chat response.
+    Called from inside the streaming generator after it finishes."""
+    elapsed_ms = int((time.time() - start_time) * 1000)
+    await _write_usage_log(
+        username=(user or {}).get("username"),
+        endpoint=str(raw_request.url.path),
+        method=raw_request.method,
+        model=model,
+        prompt_tokens=prompt_tokens or 0,
+        completion_tokens=completion_tokens or 0,
+        total_tokens=(prompt_tokens or 0) + (completion_tokens or 0),
+        status_code=200 if success else 500,
+        response_time_ms=elapsed_ms,
+        ip_address=(raw_request.client.host if raw_request.client else None),
+        error_message=error_message,
+    )
 
 class ChatMessage(BaseModel):
     role: str
@@ -603,6 +791,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Ollama API Gateway")
     await init_db_pool()
     asyncio.create_task(health_check_loop())
+    asyncio.create_task(usage_logs_cleanup_loop())
     yield
     # Shutdown
     logger.info("Shutting down Ollama API Gateway")
@@ -618,6 +807,59 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def no_cache_static_middleware(request: Request, call_next):
+    """強制 HTML / 靜態 JS/CSS 不快取，確保前端改動即時生效（也讓 Cloudflare 不快取）。"""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        # Cloudflare-specific override (CDN edge cache)
+        response.headers["CDN-Cache-Control"] = "no-store"
+        response.headers["Cloudflare-CDN-Cache-Control"] = "no-store"
+    return response
+
+
+@app.middleware("http")
+async def usage_log_middleware(request: Request, call_next):
+    """Record one row in usage_logs for every /v1/* and /api/* request."""
+    request.state.usage_extra = {}
+    start = time.time()
+    error_msg = None
+    status_code = 500
+    response = None
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    except Exception as e:
+        error_msg = str(e)
+        raise
+    finally:
+        path = request.url.path
+        if path.startswith("/v1/") or path.startswith("/api/"):
+            extra = request.state.usage_extra or {}
+            # Streaming endpoints set _self_log=True and write their own row
+            # after the generator finishes (so token totals are captured).
+            if not extra.get("_self_log"):
+                elapsed_ms = int((time.time() - start) * 1000)
+                asyncio.create_task(_write_usage_log(
+                    username=extra.get("username"),
+                    endpoint=path,
+                    method=request.method,
+                    model=extra.get("model"),
+                    prompt_tokens=extra.get("prompt_tokens", 0),
+                    completion_tokens=extra.get("completion_tokens", 0),
+                    total_tokens=extra.get("total_tokens", 0),
+                    status_code=status_code,
+                    response_time_ms=elapsed_ms,
+                    ip_address=(request.client.host if request.client else None),
+                    error_message=error_msg or extra.get("error_message"),
+                ))
 
 async def health_check_loop():
     """Periodically check the health of Ollama endpoints"""
@@ -636,6 +878,38 @@ async def health_check_loop():
                 endpoint_health[endpoint] = False
                 logger.warning(f"Health check failed for {endpoint}: {e}")
 
+
+async def _prune_usage_logs(days: int) -> int:
+    """Delete usage_logs rows older than `days` days. Returns number of rows deleted."""
+    if not db_pool or days <= 0:
+        return 0
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM usage_logs WHERE request_at < DATE_SUB(NOW(), INTERVAL %s DAY)",
+                    (days,)
+                )
+                return cur.rowcount or 0
+    except Exception as e:
+        logger.error(f"Failed to prune usage_logs: {e}")
+        return 0
+
+
+async def usage_logs_cleanup_loop():
+    """Once a day, prune usage_logs rows older than USAGE_LOG_RETENTION_DAYS."""
+    # Stagger startup so we don't hammer DB at boot
+    await asyncio.sleep(60)
+    while True:
+        try:
+            deleted = await _prune_usage_logs(USAGE_LOG_RETENTION_DAYS)
+            if deleted:
+                logger.info(f"Pruned {deleted} usage_logs rows older than {USAGE_LOG_RETENTION_DAYS} days")
+        except Exception as e:
+            logger.error(f"usage_logs cleanup error: {e}")
+        # Run roughly once a day
+        await asyncio.sleep(24 * 60 * 60)
+
 def get_available_endpoint(model: str = None):
     """Get endpoint for a specific model, or random available endpoint if model not specified.
 
@@ -644,7 +918,7 @@ def get_available_endpoint(model: str = None):
                returns the dedicated endpoint for that model.
 
     Returns:
-        The endpoint URL string, or None if no endpoints available.
+        The endpoint URL string, or None if no endpoints available / model unknown.
     """
     # If model is specified and has a dedicated endpoint, use it
     if model and model in MODEL_ENDPOINT_MAP:
@@ -656,7 +930,14 @@ def get_available_endpoint(model: str = None):
         logger.warning(f"Dedicated endpoint for model '{model}' ({endpoint}) is unhealthy, but using it anyway")
         return endpoint
 
-    # Fallback: random selection from available endpoints (for unknown models)
+    # A model name was given but does not map to any endpoint: refuse rather than
+    # silently routing to a random llama.cpp instance. llama.cpp ignores the `model`
+    # field and would happily respond with whatever model it has loaded, masking
+    # client-side typos like "gpt-4o-mini00000".
+    if model:
+        return None
+
+    # No model specified: random selection (used by warmup/health probes)
     available = [ep for ep in OLLAMA_ENDPOINTS if endpoint_health.get(ep, True)]
 
     if not available:
@@ -664,6 +945,19 @@ def get_available_endpoint(model: str = None):
         available = OLLAMA_ENDPOINTS
 
     return random.choice(available) if available else None
+
+
+def reject_unknown_chat_model(model: Optional[str]):
+    """Raise 400 if `model` is not in the chat-capable model set.
+    Used at endpoint boundaries so the user sees a clear error instead of a
+    503 (or worse, a successful response from llama.cpp ignoring the model)."""
+    if not model:
+        raise HTTPException(status_code=400, detail="必須指定 model 欄位")
+    if model not in KNOWN_CHAT_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知的模型 '{model}'。可用模型：{sorted(KNOWN_CHAT_MODELS)}"
+        )
 
 async def forward_request(endpoint: str, path: str, method: str, headers: dict, json_data: dict = None, stream: bool = False):
     """Forward request to Ollama endpoint"""
@@ -810,6 +1104,20 @@ async def list_models(user: Dict = Depends(get_current_user)):
 
     # Parse unique models back to dicts and filter hidden models
     unique_models = [json.loads(m) for m in all_models]
+
+    # Inject synthetic entries for any MODEL_ENDPOINT_MAP keys not already
+    # discovered (e.g. MLX servers that list multiple cached models — we only
+    # want to expose the single one we explicitly route).
+    _existing_ids = {m.get("id") for m in unique_models}
+    for _mid, _ep in MODEL_ENDPOINT_MAP.items():
+        if _mid not in _existing_ids:
+            unique_models.append({
+                "id": _mid,
+                "object": "model",
+                "owned_by": "mlx" if "mlx-community" in _mid else "local",
+                "created": int(time.time()),
+            })
+
     filtered_models = [m for m in unique_models if m.get("id") not in HIDDEN_MODELS]
 
     # Add model info/descriptions and type classification
@@ -828,6 +1136,9 @@ async def list_models(user: Dict = Depends(get_current_user)):
         elif model_id in QWEN_VL_MODELS or model_id in OLLAMA_LOCAL_MODELS:
             model["deployment_type"] = "local"
             model["provider"] = "Ollama"
+        elif model_id and ("mlx-community/" in model_id or model.get("owned_by") == "mlx"):
+            model["deployment_type"] = "local"
+            model["provider"] = "MLX"
         else:
             # Default to local for llama.cpp models
             model["deployment_type"] = "local"
@@ -1005,7 +1316,7 @@ async def forward_to_qwen_vl(request_data: dict, stream: bool = False):
 
     # Prepare Ollama native format request
     ollama_request = {
-        "model": converted_data.get("model", "llava:7b"),
+        "model": converted_data.get("model", "qwen2.5vl:7b"),
         "messages": converted_data.get("messages", []),
         "stream": stream
     }
@@ -1084,6 +1395,10 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
     """Handle chat completion requests"""
     import time
     start_time = time.time()
+    record_usage_extra(raw_request, model=request.model)
+    if request.stream:
+        # Streaming responses log themselves after the generator completes
+        record_usage_extra(raw_request, _self_log=True)
 
     # Convert request to dict
     request_data = request.model_dump(exclude_unset=True)
@@ -1098,6 +1413,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
         return str(content)
 
     messages_for_record = [{"role": m.role, "content": get_text_content(m.content)} for m in request.messages]
+
+    reject_unknown_chat_model(request.model)
 
     # Permission check: allowed models
     perms = user.get("permissions", {})
@@ -1172,6 +1489,9 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         user_id=user.get('id'),
                         username=user.get('username')
                     )
+                    await log_chat_usage(raw_request, user, request.model,
+                                         prompt_tokens, completion_tokens,
+                                         start_time, success=True)
 
                 return StreamingResponse(stream_ollama_local(), media_type="text/event-stream")
             else:
@@ -1235,6 +1555,9 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         user_id=user.get('id'),
                         username=user.get('username')
                     )
+                    await log_chat_usage(raw_request, user, request.model,
+                                         prompt_tokens, completion_tokens,
+                                         start_time, success=True)
 
                 return StreamingResponse(stream_qwen_vl(), media_type="text/event-stream")
             else:
@@ -1319,6 +1642,9 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         user_id=user.get('id'),
                         username=user.get('username')
                     )
+                    await log_chat_usage(raw_request, user, request.model,
+                                         prompt_tokens, completion_tokens,
+                                         start_time, success=True)
 
                 return StreamingResponse(stream_deepseek(), media_type="text/event-stream")
             else:
@@ -1416,6 +1742,9 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         user_id=user.get('id'),
                         username=user.get('username')
                     )
+                    await log_chat_usage(raw_request, user, request.model,
+                                         prompt_tokens, completion_tokens,
+                                         start_time, success=True)
 
                 return StreamingResponse(
                     stream_with_recording(),
@@ -1502,6 +1831,8 @@ async def completions(request: Request, user: Dict = Depends(get_current_user)):
     request_data = await request.json()
     model = request_data.get("model")
 
+    reject_unknown_chat_model(model)
+
     # Route to the correct endpoint based on model
     endpoint = get_available_endpoint(model)
 
@@ -1531,6 +1862,15 @@ async def embeddings(request: Request, user: Dict = Depends(get_current_user)):
     """Handle embedding requests - forward to the appropriate endpoint"""
     request_data = await request.json()
     model = request_data.get("model")
+    record_usage_extra(request, model=model)
+
+    if not model:
+        raise HTTPException(status_code=400, detail="必須指定 model 欄位")
+    if model not in MODEL_ENDPOINT_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知的模型 '{model}'。可用模型：{sorted(MODEL_ENDPOINT_MAP.keys())}"
+        )
 
     # Route to the correct endpoint based on model
     endpoint = get_available_endpoint(model)
@@ -1664,6 +2004,8 @@ async def translate_text(request: TranslateRequest, user: Dict = Depends(get_cur
     if not request.text or not request.text.strip():
         raise HTTPException(status_code=400, detail="請提供要翻譯的文字")
 
+    reject_unknown_chat_model(request.model)
+
     target_lang = TRANSLATE_LANGUAGES.get(request.target_language, request.target_language)
 
     # 構建翻譯提示
@@ -1740,6 +2082,8 @@ async def transcribe_and_translate(
     user: Dict = Depends(get_current_user)
 ):
     """語音轉文字並即時翻譯 - 一次完成轉錄與翻譯"""
+    reject_unknown_chat_model(model)
+
     # 步驟1: 語音轉文字
     url = f"{SPEECH_API_BASE_URL}/transcribe"
     file_content = await file.read()
@@ -1897,10 +2241,683 @@ async def ocr_health_check(user: Dict = Depends(get_current_user)):
     }
 
 
+# ==================== Async OCR Jobs (robust for long OCR) ====================
+# In-memory job store. Jobs are lost on restart — that's acceptable; users can resubmit.
+_ocr_jobs: Dict[str, Dict[str, Any]] = {}
+
+# Per-backend concurrency limits. Protects single-GPU upstreams from overload.
+# Each call to _ocr_one_page acquires the relevant semaphore around the HTTP request.
+_OCR_CONCURRENCY = {
+    "deepseek": 1,          # 192.168.0.191:8001 — single GPU
+    "local": 1,             # 192.168.0.191:8002 Qwen-VL — single GPU
+    "external": 2,          # pp-ocr-service (Mac CPU) — moderate
+    "paddleocr_remote": 1,  # 192.168.0.191:8866 PaddleOCR Serving — single GPU shared
+}
+_ocr_semaphores: Dict[str, asyncio.Semaphore] = {}
+
+
+def _get_ocr_semaphore(backend_type: str) -> asyncio.Semaphore:
+    if backend_type not in _ocr_semaphores:
+        _ocr_semaphores[backend_type] = asyncio.Semaphore(_OCR_CONCURRENCY.get(backend_type, 1))
+    return _ocr_semaphores[backend_type]
+
+
+def _ocr_backend_stats() -> Dict[str, Dict[str, int]]:
+    """Return {backend: {limit, in_use, waiting}} for observability."""
+    stats = {}
+    for bt, limit in _OCR_CONCURRENCY.items():
+        sem = _ocr_semaphores.get(bt)
+        if sem is None:
+            stats[bt] = {"limit": limit, "in_use": 0, "waiting": 0}
+        else:
+            in_use = limit - sem._value  # private but stable in CPython
+            waiting = len(sem._waiters) if sem._waiters else 0
+            stats[bt] = {"limit": limit, "in_use": in_use, "waiting": waiting}
+    return stats
+
+
+def _build_ocr_prompt(language: str) -> str:
+    if language == "auto":
+        return "請辨識圖片中的所有文字，保持原始排版，只輸出文字。"
+    if language == "en":
+        return "Recognize all English text in this image, keep layout, output text only."
+    if language == "zh":
+        return "請辨識圖片中的所有中文文字，保持原始排版。"
+    return f"Recognize all text (language: {language}), keep layout."
+
+
+async def _ocr_one_page(
+    client: "httpx.AsyncClient",
+    model: str,
+    model_info: dict,
+    img_bytes: bytes,
+    content_type: str,
+    is_pdf: bool,
+    page_no: int,
+    has_label: bool,
+    filename: str,
+    language: str,
+    ocr_prompt: str,
+) -> tuple:
+    """Return (text, confidence). Never raises — encodes errors into text.
+
+    Acquires the per-backend semaphore so we never overload a single-GPU upstream.
+    """
+    import base64 as _b64
+    sem = _get_ocr_semaphore(model_info["type"])
+    await sem.acquire()
+    try:
+        if model_info["type"] == "local":
+            b64 = _b64.b64encode(img_bytes).decode("utf-8")
+            r = await client.post(
+                f"{QWEN_VL_OCR_URL}/ocr/base64",
+                json={"image_base64": b64, "prompt": ocr_prompt},
+            )
+            if r.status_code == 200:
+                return (r.json().get("text") or "").strip(), 0.85
+            return f"[辨識失敗 {r.status_code}]", 0.0
+        if model_info["type"] == "deepseek":
+            files_arg = {
+                "file": (
+                    f"page_{page_no}.png" if has_label else (filename or "image.png"),
+                    img_bytes,
+                    "image/png" if is_pdf else content_type,
+                )
+            }
+            r = await client.post(
+                f"{DEEPSEEK_OCR_BASE_URL}/ocr/file",
+                files=files_arg,
+                data={"prompt": ocr_prompt},
+            )
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("success", False):
+                    return _strip_deepseek_noise(res.get("text", "")), 0.95
+                return "[辨識失敗]", 0.0
+            return f"[辨識失敗 {r.status_code}]", 0.0
+        if model_info["type"] == "paddleocr_remote":
+            files_arg = {
+                "file": (
+                    f"page_{page_no}.png" if has_label else (filename or "image.png"),
+                    img_bytes,
+                    "image/png" if is_pdf else content_type,
+                )
+            }
+            r = await client.post(
+                f"{PADDLEOCR_REMOTE_URL}/ocr",
+                files=files_arg,
+            )
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("success", True):
+                    details = res.get("details") or res.get("results") or []
+                    lines = [d.get("text", "") for d in details if d.get("text")]
+                    confs = [d.get("confidence") for d in details if d.get("confidence") is not None]
+                    avg_conf = sum(confs) / len(confs) if confs else 0.9
+                    return "\n".join(lines), avg_conf
+                return f"[辨識失敗: {res.get('error','unknown')}]", 0.0
+            return f"[辨識失敗 {r.status_code}]", 0.0
+        # external (PP-OCR)
+        files_arg = {
+            "file": (
+                f"page_{page_no}.png" if has_label else (filename or "image.png"),
+                img_bytes,
+                "image/png" if is_pdf else content_type,
+            )
+        }
+        r = await client.post(
+            f"{OCR_API_BASE_URL}/ocr/recognize",
+            files=files_arg,
+            data={"model": model, "language": language},
+        )
+        if r.status_code == 200:
+            res = r.json()
+            return (res.get("text") or "").strip(), res.get("confidence", 0.9)
+        return f"[辨識失敗 {r.status_code}]", 0.0
+    except httpx.TimeoutException:
+        return "[辨識失敗: 單頁超時]", 0.0
+    except Exception as exc:
+        return f"[辨識錯誤: {str(exc)[:200]}]", 0.0
+    finally:
+        sem.release()
+
+
+async def _run_ocr_job(
+    job_id: str,
+    file_content: bytes,
+    content_type: str,
+    is_pdf: bool,
+    model: str,
+    language: str,
+    filename: str,
+):
+    job = _ocr_jobs[job_id]
+    model_info = OCR_MODELS[model]
+    ocr_prompt = _build_ocr_prompt(language)
+    import time as _time, gc as _gc
+    pdf_doc = None
+    try:
+        # Count pages (lazy render — don't materialize all images)
+        job["status"] = "rendering"
+        if is_pdf:
+            pdf_doc = fitz.open(stream=file_content, filetype="pdf")
+            total = len(pdf_doc)
+            dpi = 300 if model == "deepseek-ocr" else 200
+            mat = fitz.Matrix(dpi / 72, dpi / 72)
+        else:
+            total = 1
+
+        job["total_pages"] = total
+        job["status"] = "processing"
+
+        async with httpx.AsyncClient(timeout=600) as client:
+            for idx in range(total):
+                page_no = idx + 1
+                job["current_page"] = page_no
+
+                # Render this page ON DEMAND (single page image in RAM at a time)
+                if is_pdf:
+                    pix = pdf_doc[idx].get_pixmap(matrix=mat)
+                    img_bytes = pix.tobytes("png")
+                    pix = None  # free pixmap immediately
+                    label = f"第 {page_no} 頁"
+                    has_label = True
+                else:
+                    img_bytes = file_content
+                    label = None
+                    has_label = False
+
+                text, conf = await _ocr_one_page(
+                    client, model, model_info, img_bytes, content_type,
+                    is_pdf, page_no, has_label, filename, language, ocr_prompt,
+                )
+
+                # Release per-page image buffer immediately; helps for 300 DPI A4 (~5MB/page)
+                img_bytes = None
+                if is_pdf:
+                    _gc.collect()
+
+                job["pages"].append({
+                    "page": page_no,
+                    "label": label,
+                    "text": text,
+                    "confidence": conf,
+                })
+                job["completed_pages"] = page_no
+
+        # Close PDF and drop raw bytes reference — free source memory before building full_text
+        if pdf_doc is not None:
+            pdf_doc.close()
+            pdf_doc = None
+        file_content = None
+        _gc.collect()
+
+        # Build full text
+        parts = []
+        confidences = []
+        for p in job["pages"]:
+            if p["label"]:
+                parts.append(f"--- {p['label']} ---\n{p['text']}")
+            else:
+                parts.append(p["text"])
+            if p["confidence"] > 0:
+                confidences.append(p["confidence"])
+        job["full_text"] = "\n\n".join(parts)
+        job["total_chars"] = len(job["full_text"])
+        job["confidence"] = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
+        job["processing_time_ms"] = round((_time.time() - job["started_at"]) * 1000, 1)
+        job["status"] = "done"
+        job["finished_at"] = _time.time()
+    except Exception as exc:
+        logger.exception(f"OCR job {job_id} failed")
+        job["status"] = "error"
+        job["error"] = str(exc)
+        job["finished_at"] = _time.time()
+    finally:
+        if pdf_doc is not None:
+            try: pdf_doc.close()
+            except Exception: pass
+        _gc.collect()
+
+
+@app.post("/v1/ocr/submit")
+async def ocr_submit(
+    request: Request,
+    file: UploadFile = File(...),
+    model: str = Form("paddleocr-remote"),
+    language: str = Form("auto"),
+    user: Dict = Depends(get_current_user),
+):
+    """Submit an async OCR job. Returns {job_id}; poll /v1/ocr/jobs/{job_id} for progress."""
+    import time as _time, uuid as _uuid
+
+    record_usage_extra(request, model=model)
+    af = user.get("permissions", {}).get("allowed_features")
+    if af is not None and "ocr" not in af:
+        raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
+    if model not in OCR_MODELS:
+        raise HTTPException(status_code=400, detail=f"Unknown OCR model: {model}")
+
+    file_content = await file.read()
+    file_size = len(file_content)
+    content_type = file.content_type or ""
+    filename_lower = (file.filename or "").lower()
+    if not content_type or content_type == "application/octet-stream":
+        if filename_lower.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif filename_lower.endswith(".png"):
+            content_type = "image/png"
+        elif filename_lower.endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif filename_lower.endswith(".gif"):
+            content_type = "image/gif"
+        elif filename_lower.endswith(".webp"):
+            content_type = "image/webp"
+        elif filename_lower.endswith(".bmp"):
+            content_type = "image/bmp"
+    is_image = content_type.startswith("image/")
+    is_pdf = content_type == "application/pdf" or filename_lower.endswith(".pdf")
+    if not is_image and not is_pdf:
+        raise HTTPException(status_code=400, detail="Only image or PDF supported")
+    if file_size > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 20MB limit")
+
+    # Persist upload
+    try:
+        _upload_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "ocr")
+        _date_dir = os.path.join(_upload_root, datetime.now().strftime("%Y-%m-%d"))
+        os.makedirs(_date_dir, exist_ok=True)
+        _ts = datetime.now().strftime("%H%M%S_%f")
+        _safe_user = "".join(c for c in (user.get("username") or "anon") if c.isalnum() or c in "-_")[:32]
+        _safe_name = "".join(c for c in (file.filename or "upload") if c.isalnum() or c in ".-_") or "upload"
+        _save_path = os.path.join(_date_dir, f"{_ts}_{_safe_user}_{_safe_name}")
+        with open(_save_path, "wb") as _fp:
+            _fp.write(file_content)
+    except Exception as _e:
+        logger.warning(f"Failed to persist OCR upload: {_e}")
+
+    job_id = _uuid.uuid4().hex
+    _ocr_jobs[job_id] = {
+        "job_id": job_id,
+        "status": "queued",
+        "model": model,
+        "model_name": OCR_MODELS[model].get("name", model),
+        "total_pages": 0,
+        "completed_pages": 0,
+        "current_page": 0,
+        "pages": [],
+        "full_text": "",
+        "total_chars": 0,
+        "confidence": 0.0,
+        "error": None,
+        "started_at": _time.time(),
+        "finished_at": None,
+        "username": user.get("username"),
+        "filename": file.filename,
+    }
+    asyncio.create_task(_run_ocr_job(job_id, file_content, content_type, is_pdf, model, language, file.filename or "upload"))
+
+    # Opportunistic cleanup of old finished jobs (keep last ~50)
+    if len(_ocr_jobs) > 80:
+        done_ids = sorted(
+            [jid for jid, j in _ocr_jobs.items() if j.get("finished_at")],
+            key=lambda jid: _ocr_jobs[jid].get("finished_at") or 0,
+        )
+        for jid in done_ids[:30]:
+            _ocr_jobs.pop(jid, None)
+
+    return {"job_id": job_id}
+
+
+@app.get("/v1/ocr/jobs/{job_id}")
+async def ocr_get_job(job_id: str, user: Dict = Depends(get_current_user)):
+    job = _ocr_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or expired")
+    return {**job, "backend_stats": _ocr_backend_stats()}
+
+
+_REMITTANCE_PROMPT = """你是專業的銀行匯款通知書文件整理助手。
+
+以下是 OCR 辨識出的銀行匯入/匯出匯款通知書原文（可能有多頁、辨識誤差）。請：
+
+1. 判斷頁數，逐頁整理
+2. 提取每頁關鍵欄位：匯款編號 / 通知日期 / 生效日 / 匯款人（名稱、地址、帳號）/ 收款人（名稱、地址、帳號、分行）/ 匯款金額（幣別+金額+大寫）/ 原匯款金額 / 匯款銀行 / 存匯行 / 費用（誰支付、金額）/ 匯款附言 / 備註
+3. 自動修正明顯的 OCR 錯誤（例如空格錯位、字形相似錯字）但不要臆造內容
+4. 以 Markdown 表格或條列呈現，每頁一段，清晰易讀
+5. 若有多筆匯款，摘要在最後列「總覽」表格（頁次/匯款編號/金額/匯款人/收款人）
+
+只輸出整理後的 Markdown，不要加入解釋、前言或後記。"""
+
+
+async def _format_job_with_deepseek(job_id: str):
+    job = _ocr_jobs.get(job_id)
+    if not job:
+        return
+    import json as _json
+    job["ai_format_status"] = "running"
+    job["formatted_markdown"] = ""
+    job["ai_format_usage"] = None
+    job["ai_format_error"] = None
+    try:
+        if not DEEPSEEK_API_KEY:
+            job["ai_format_status"] = "error"
+            job["ai_format_error"] = "DEEPSEEK_API_KEY is not configured"
+            return
+        text = job.get("full_text") or ""
+        if not text.strip():
+            job["ai_format_status"] = "error"
+            job["ai_format_error"] = "OCR 內容為空，無法整理"
+            return
+
+        buf = []
+        async with httpx.AsyncClient(timeout=300) as client:
+            async with client.stream(
+                "POST",
+                f"{DEEPSEEK_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": _REMITTANCE_PROMPT},
+                        {"role": "user", "content": text},
+                    ],
+                    "temperature": 0.2,
+                    "stream": True,
+                },
+            ) as r:
+                if r.status_code != 200:
+                    body = await r.aread()
+                    job["ai_format_status"] = "error"
+                    job["ai_format_error"] = f"DeepSeek API {r.status_code}: {body.decode('utf-8', errors='replace')[:400]}"
+                    return
+                async for raw_line in r.aiter_lines():
+                    if not raw_line:
+                        continue
+                    if not raw_line.startswith("data: "):
+                        continue
+                    payload = raw_line[6:].strip()
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        obj = _json.loads(payload)
+                    except Exception:
+                        continue
+                    choices = obj.get("choices") or []
+                    if choices:
+                        delta = choices[0].get("delta") or {}
+                        piece = delta.get("content") or ""
+                        if piece:
+                            buf.append(piece)
+                            # Update job incrementally so frontend polling can render partial markdown
+                            job["formatted_markdown"] = "".join(buf)
+                    usage = obj.get("usage")
+                    if usage:
+                        job["ai_format_usage"] = usage
+        job["formatted_markdown"] = "".join(buf).strip()
+        job["ai_format_status"] = "done"
+    except Exception as exc:
+        logger.exception(f"AI format failed for job {job_id}")
+        job["ai_format_status"] = "error"
+        job["ai_format_error"] = str(exc)[:300]
+
+
+@app.post("/v1/ocr/jobs/{job_id}/format")
+async def ocr_format_job(job_id: str, user: Dict = Depends(get_current_user)):
+    """Trigger DeepSeek AI post-processing to extract structured Markdown from OCR text."""
+    job = _ocr_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or expired")
+    if job["status"] != "done":
+        raise HTTPException(status_code=400, detail=f"Job must be completed (current: {job['status']})")
+    if job.get("ai_format_status") == "running":
+        return {"job_id": job_id, "ai_format_status": "running"}
+    job["ai_format_status"] = "queued"
+    asyncio.create_task(_format_job_with_deepseek(job_id))
+    return {"job_id": job_id, "ai_format_status": "queued"}
+
+
+@app.get("/v1/ocr/queue")
+async def ocr_queue_status(user: Dict = Depends(get_current_user)):
+    """Return concurrency limits + active/waiting counts per backend, and all active jobs."""
+    active = [
+        {
+            "job_id": j["job_id"],
+            "model": j["model"],
+            "status": j["status"],
+            "completed_pages": j["completed_pages"],
+            "total_pages": j["total_pages"],
+            "filename": j.get("filename"),
+            "username": j.get("username"),
+        }
+        for j in _ocr_jobs.values()
+        if j["status"] in ("queued", "rendering", "processing")
+    ]
+    return {
+        "backends": _ocr_backend_stats(),
+        "active_jobs": active,
+        "total_jobs_in_store": len(_ocr_jobs),
+    }
+
+
+@app.post("/v1/ocr/recognize_stream")
+async def ocr_recognize_stream(
+    request: Request,
+    file: UploadFile = File(...),
+    model: str = Form("paddleocr-remote"),
+    language: str = Form("auto"),
+    user: Dict = Depends(get_current_user),
+):
+    """Stream OCR results page-by-page as NDJSON (application/x-ndjson).
+
+    Events (one JSON per line):
+      {event:"start", total_pages, model, model_name}
+      {event:"rendering", total_pages}
+      {event:"processing", page, total, label}
+      {event:"page", page, total, label, text, confidence}
+      {event:"done", processing_time_ms, total_chars, confidence}
+      {event:"error", message}
+    """
+    import base64 as _b64, time as _time, json as _json
+
+    record_usage_extra(request, model=model)
+    af = user.get("permissions", {}).get("allowed_features")
+    if af is not None and "ocr" not in af:
+        raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
+    if model not in OCR_MODELS:
+        raise HTTPException(status_code=400, detail=f"Unknown OCR model: {model}")
+    model_info = OCR_MODELS[model]
+
+    file_content = await file.read()
+    file_size = len(file_content)
+    content_type = file.content_type or ""
+    filename_lower = (file.filename or "").lower()
+    if not content_type or content_type == "application/octet-stream":
+        if filename_lower.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif filename_lower.endswith(".png"):
+            content_type = "image/png"
+        elif filename_lower.endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif filename_lower.endswith(".gif"):
+            content_type = "image/gif"
+        elif filename_lower.endswith(".webp"):
+            content_type = "image/webp"
+        elif filename_lower.endswith(".bmp"):
+            content_type = "image/bmp"
+    is_image = content_type.startswith("image/")
+    is_pdf = content_type == "application/pdf" or filename_lower.endswith(".pdf")
+    if not is_image and not is_pdf:
+        raise HTTPException(status_code=400, detail="Only image or PDF supported")
+    if file_size > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 20MB limit")
+
+    # Persist upload
+    try:
+        _upload_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "ocr")
+        _date_dir = os.path.join(_upload_root, datetime.now().strftime("%Y-%m-%d"))
+        os.makedirs(_date_dir, exist_ok=True)
+        _ts = datetime.now().strftime("%H%M%S_%f")
+        _safe_user = "".join(c for c in (user.get("username") or "anon") if c.isalnum() or c in "-_")[:32]
+        _safe_name = "".join(c for c in (file.filename or "upload") if c.isalnum() or c in ".-_") or "upload"
+        _save_path = os.path.join(_date_dir, f"{_ts}_{_safe_user}_{_safe_name}")
+        with open(_save_path, "wb") as _fp:
+            _fp.write(file_content)
+        logger.info(f"Saved OCR upload (stream): {_save_path} ({file_size} bytes, model={model})")
+    except Exception as _e:
+        logger.warning(f"Failed to persist OCR upload: {_e}")
+
+    # Build OCR prompt
+    if language == "auto":
+        ocr_prompt = "請辨識圖片中的所有文字，保持原始排版，只輸出文字。"
+    elif language == "en":
+        ocr_prompt = "Recognize all English text in this image, keep layout, output text only."
+    elif language == "zh":
+        ocr_prompt = "請辨識圖片中的所有中文文字，保持原始排版。"
+    else:
+        ocr_prompt = f"Recognize all text (language: {language}), keep layout."
+
+    async def generate():
+        def emit(obj):
+            return (_json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8")
+
+        start_ts = _time.time()
+        all_parts = []
+        confidences = []
+
+        try:
+            # Render pages
+            pages = []  # [(label, png_bytes)]
+            if is_pdf:
+                yield emit({"event": "rendering", "message": "正在將 PDF 轉換為圖片…"})
+                pdf_doc = fitz.open(stream=file_content, filetype="pdf")
+                dpi = 300 if model == "deepseek-ocr" else 200
+                mat = fitz.Matrix(dpi / 72, dpi / 72)
+                for i in range(len(pdf_doc)):
+                    pix = pdf_doc[i].get_pixmap(matrix=mat)
+                    pages.append((f"第 {i + 1} 頁", pix.tobytes("png")))
+                pdf_doc.close()
+            else:
+                pages.append((None, file_content))
+
+            yield emit({
+                "event": "start",
+                "total_pages": len(pages),
+                "model": model,
+                "model_name": model_info.get("name", model),
+            })
+
+            async with httpx.AsyncClient(timeout=600) as client:
+                for idx, (label, img_bytes) in enumerate(pages):
+                    page_no = idx + 1
+                    yield emit({
+                        "event": "processing",
+                        "page": page_no,
+                        "total": len(pages),
+                        "label": label or "圖片",
+                    })
+                    text = ""
+                    conf = 0.0
+                    try:
+                        if model_info["type"] == "local":
+                            b64 = _b64.b64encode(img_bytes).decode("utf-8")
+                            r = await client.post(
+                                f"{QWEN_VL_OCR_URL}/ocr/base64",
+                                json={"image_base64": b64, "prompt": ocr_prompt},
+                            )
+                            if r.status_code == 200:
+                                text = (r.json().get("text") or "").strip()
+                                conf = 0.85
+                            else:
+                                text = f"[辨識失敗 {r.status_code}]"
+                        elif model_info["type"] == "deepseek":
+                            files_arg = {
+                                "file": (
+                                    f"page_{page_no}.png" if label else (file.filename or "image.png"),
+                                    img_bytes,
+                                    "image/png" if is_pdf else content_type,
+                                )
+                            }
+                            r = await client.post(
+                                f"{DEEPSEEK_OCR_BASE_URL}/ocr/file",
+                                files=files_arg,
+                                data={"prompt": ocr_prompt},
+                            )
+                            if r.status_code == 200:
+                                res = r.json()
+                                if res.get("success", False):
+                                    text = _strip_deepseek_noise(res.get("text", ""))
+                                    conf = 0.95
+                                else:
+                                    text = "[辨識失敗]"
+                            else:
+                                text = f"[辨識失敗 {r.status_code}]"
+                        else:
+                            files_arg = {
+                                "file": (
+                                    f"page_{page_no}.png" if label else (file.filename or "image.png"),
+                                    img_bytes,
+                                    "image/png" if is_pdf else content_type,
+                                )
+                            }
+                            r = await client.post(
+                                f"{OCR_API_BASE_URL}/ocr/recognize",
+                                files=files_arg,
+                                data={"model": model, "language": language},
+                            )
+                            if r.status_code == 200:
+                                res = r.json()
+                                text = (res.get("text") or "").strip()
+                                conf = res.get("confidence", 0.9)
+                            else:
+                                text = f"[辨識失敗 {r.status_code}]"
+                    except httpx.TimeoutException:
+                        text = "[辨識失敗: 單頁超時]"
+                    except Exception as exc:
+                        text = f"[辨識錯誤: {str(exc)[:200]}]"
+
+                    part = f"--- {label} ---\n{text}" if label else text
+                    all_parts.append(part)
+                    if conf > 0:
+                        confidences.append(conf)
+                    yield emit({
+                        "event": "page",
+                        "page": page_no,
+                        "total": len(pages),
+                        "label": label,
+                        "text": text,
+                        "confidence": conf,
+                    })
+
+            elapsed_ms = (_time.time() - start_ts) * 1000
+            full_text = "\n\n".join(all_parts)
+            yield emit({
+                "event": "done",
+                "processing_time_ms": round(elapsed_ms, 1),
+                "total_chars": len(full_text),
+                "confidence": round(sum(confidences) / len(confidences), 4) if confidences else 0.0,
+                "full_text": full_text,
+            })
+        except Exception as exc:
+            logger.exception("Stream OCR error")
+            yield emit({"event": "error", "message": str(exc)})
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",  # Disable proxy buffering (nginx/CF)
+            "Connection": "keep-alive",
+        },
+    )
+
+
 @app.post("/v1/ocr/recognize")
 async def ocr_recognize(
+    request: Request,
     file: UploadFile = File(...),
-    model: str = Form("llava-ocr"),
+    model: str = Form("paddleocr-remote"),
     output_format: str = Form("text"),
     language: str = Form("auto"),
     user: Dict = Depends(get_current_user)
@@ -1912,6 +2929,7 @@ async def ocr_recognize(
     - output_format: Output format (text, json, markdown, all)
     - language: Target language for OCR (auto, zh, en, ja, etc.)
     """
+    record_usage_extra(request, model=model)
     af = user.get("permissions", {}).get("allowed_features")
     if af is not None and "ocr" not in af:
         raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
@@ -1956,6 +2974,21 @@ async def ocr_recognize(
     if not is_image and not is_pdf:
         raise HTTPException(status_code=400, detail="Only image files (JPG, PNG, GIF, WebP, BMP) or PDF files are supported.")
 
+    # Persist uploaded file to disk for recordkeeping
+    try:
+        _upload_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "ocr")
+        _date_dir = os.path.join(_upload_root, datetime.now().strftime("%Y-%m-%d"))
+        os.makedirs(_date_dir, exist_ok=True)
+        _ts = datetime.now().strftime("%H%M%S_%f")
+        _safe_user = "".join(c for c in (user.get("username") or "anon") if c.isalnum() or c in "-_")[:32]
+        _safe_name = "".join(c for c in (file.filename or "upload") if c.isalnum() or c in ".-_") or "upload"
+        _save_path = os.path.join(_date_dir, f"{_ts}_{_safe_user}_{_safe_name}")
+        with open(_save_path, "wb") as _fp:
+            _fp.write(file_content)
+        logger.info(f"Saved OCR upload: {_save_path} ({file_size} bytes, model={model})")
+    except Exception as _e:
+        logger.warning(f"Failed to persist OCR upload: {_e}")
+
     # Size limit (20MB)
     if file_size > 20 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File size exceeds 20MB limit")
@@ -1986,34 +3019,40 @@ async def ocr_recognize(
             else:
                 ocr_prompt = f"Please recognize all text in this image (language: {language}), maintain the original layout, and output only the text content."
 
-            # Call LLaVA model
-            base_url = QWEN_VL_BASE_URL.replace("/v1", "")
+            # Build list of (page_label, image_bytes) to OCR
+            pages: list = []
+            if is_pdf:
+                pdf_doc = fitz.open(stream=file_content, filetype="pdf")
+                mat = fitz.Matrix(200 / 72, 200 / 72)
+                for i in range(len(pdf_doc)):
+                    pix = pdf_doc[i].get_pixmap(matrix=mat)
+                    pages.append((f"第 {i + 1} 頁", pix.tobytes("png")))
+                pdf_doc.close()
+            else:
+                pages.append((None, file_content))
 
-            async with httpx.AsyncClient(timeout=180) as client:
-                response = await client.post(
-                    f"{base_url}/api/chat",
-                    json={
-                        "model": "llava:7b",
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": ocr_prompt,
-                                "images": [base64_image]
-                            }
-                        ],
-                        "stream": False
-                    }
-                )
-
-                if response.status_code == 200:
-                    result = response.json()
-                    ocr_text = result.get("message", {}).get("content", "").strip()
-                    confidence = 0.85  # LLaVA doesn't provide confidence, use default
-                else:
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail=f"LLaVA OCR failed: {response.text}"
-                    )
+            if pages:
+                sem = asyncio.Semaphore(1)  # Remote GPU: serial only
+                async with httpx.AsyncClient(timeout=600) as client:
+                    async def ocr_page(label, img_bytes):
+                        async with sem:
+                            b64 = base64.b64encode(img_bytes).decode('utf-8')
+                            try:
+                                response = await client.post(
+                                    f"{QWEN_VL_OCR_URL}/ocr/base64",
+                                    json={"image_base64": b64, "prompt": ocr_prompt},
+                                )
+                                if response.status_code == 200:
+                                    t = (response.json().get("text") or "").strip()
+                                    return f"--- {label} ---\n{t}" if label else t
+                                msg = f"[辨識失敗 {response.status_code}]"
+                                return f"--- {label} ---\n{msg}" if label else msg
+                            except httpx.TimeoutException:
+                                msg = "[辨識失敗: 單頁超時]"
+                                return f"--- {label} ---\n{msg}" if label else msg
+                    parts = await asyncio.gather(*(ocr_page(l, b) for l, b in pages))
+                    ocr_text = "\n\n".join(parts)
+                    confidence = 0.85
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="OCR request timed out")
         except Exception as e:
@@ -2060,71 +3099,42 @@ async def ocr_recognize(
                 except Exception as e:
                     logger.warning(f"Failed to check/convert image format: {e}")
 
-            # If PDF, try to extract text directly first
+            # Render all PDF pages to images and OCR them (concurrent)
             if is_pdf:
                 pdf_doc = fitz.open(stream=file_content, filetype="pdf")
-                all_texts = []
-                needs_ocr = False
-
-                # First pass: try to extract embedded text
-                logger.info("Checking PDF for embedded text...")
+                logger.info(f"Rendering PDF ({len(pdf_doc)} pages) for DeepSeek OCR")
+                mat = fitz.Matrix(300 / 72, 300 / 72)
+                page_imgs = []
                 for page_num in range(len(pdf_doc)):
-                    page = pdf_doc[page_num]
-                    page_text = page.get_text("text").strip()
-                    if page_text:
-                        all_texts.append(f"--- 第 {page_num + 1} 頁 ---\n{page_text}")
-                    else:
-                        # This page has no text, mark for OCR
-                        needs_ocr = True
-                        all_texts.append(None)  # Placeholder for OCR result
+                    pix = pdf_doc[page_num].get_pixmap(matrix=mat)
+                    page_imgs.append((page_num + 1, pix.tobytes("png")))
+                pdf_doc.close()
 
-                # Check if we got meaningful text (at least some non-empty pages)
-                extracted_texts = [t for t in all_texts if t is not None]
-                total_text_length = sum(len(t) for t in extracted_texts)
-
-                if not needs_ocr and total_text_length > 50:
-                    # PDF has embedded text, use it directly
-                    logger.info(f"PDF has embedded text ({total_text_length} chars), skipping OCR")
-                    pdf_doc.close()
-                    ocr_text = "\n\n".join(extracted_texts)
-                    confidence = 1.0  # Direct extraction is 100% accurate
-                else:
-                    # PDF is image-based or has very little text, use OCR
-                    logger.info("PDF needs OCR (image-based or insufficient text)")
-                    all_texts = []
-
-                    async with httpx.AsyncClient(timeout=180) as client:
-                        for page_num in range(len(pdf_doc)):
-                            page = pdf_doc[page_num]
-                            # Render page to image (300 DPI for better quality)
-                            mat = fitz.Matrix(300/72, 300/72)
-                            pix = page.get_pixmap(matrix=mat)
-                            img_data = pix.tobytes("png")
-
-                            # Send image to DeepSeek OCR
-                            files = {"file": (f"page_{page_num + 1}.png", img_data, "image/png")}
+                sem = asyncio.Semaphore(2)  # DeepSeek GPU: low concurrency
+                async with httpx.AsyncClient(timeout=600) as client:
+                    async def ocr_ds(page_no, img_data):
+                        async with sem:
+                            files = {"file": (f"page_{page_no}.png", img_data, "image/png")}
                             data = {"prompt": ocr_prompt}
-
-                            response = await client.post(
-                                f"{DEEPSEEK_OCR_BASE_URL}/ocr/file",
-                                files=files,
-                                data=data
-                            )
-
-                            if response.status_code == 200:
-                                result = response.json()
-                                if result.get("success", False):
-                                    page_text = result.get("text", "").strip()
-                                    if page_text:
-                                        all_texts.append(f"--- 第 {page_num + 1} 頁 ---\n{page_text}")
-                                else:
-                                    all_texts.append(f"--- 第 {page_num + 1} 頁 ---\n[辨識失敗]")
-                            else:
-                                all_texts.append(f"--- 第 {page_num + 1} 頁 ---\n[辨識失敗: {response.status_code}]")
-
-                    pdf_doc.close()
-                    ocr_text = "\n\n".join(all_texts)
-                    confidence = 0.95
+                            try:
+                                response = await client.post(
+                                    f"{DEEPSEEK_OCR_BASE_URL}/ocr/file",
+                                    files=files,
+                                    data=data,
+                                )
+                                if response.status_code == 200:
+                                    result = response.json()
+                                    if result.get("success", False):
+                                        page_text = _strip_deepseek_noise(result.get("text", ""))
+                                        if page_text:
+                                            return f"--- 第 {page_no} 頁 ---\n{page_text}"
+                                    return f"--- 第 {page_no} 頁 ---\n[辨識失敗]"
+                                return f"--- 第 {page_no} 頁 ---\n[辨識失敗: {response.status_code}]"
+                            except httpx.TimeoutException:
+                                return f"--- 第 {page_no} 頁 ---\n[辨識失敗: 單頁超時]"
+                    all_texts = await asyncio.gather(*(ocr_ds(n, d) for n, d in page_imgs))
+                ocr_text = "\n\n".join(t for t in all_texts if t)
+                confidence = 0.95
             else:
                 # Regular image processing
                 async with httpx.AsyncClient(timeout=180) as client:
@@ -2140,7 +3150,7 @@ async def ocr_recognize(
                     if response.status_code == 200:
                         result = response.json()
                         if result.get("success", False):
-                            ocr_text = result.get("text", "").strip()
+                            ocr_text = _strip_deepseek_noise(result.get("text", ""))
                             confidence = 0.95  # DeepSeek OCR is high accuracy
                         else:
                             raise HTTPException(
@@ -2166,28 +3176,53 @@ async def ocr_recognize(
             raise HTTPException(status_code=503, detail="External OCR service is unavailable")
 
         try:
-            async with httpx.AsyncClient(timeout=300) as client:
-                # Forward to external OCR API
-                files = {"file": (file.filename, file_content, content_type)}
-                data = {"model": model, "language": language}
+            # Build list of images to OCR (convert PDF pages if needed)
+            pages: list = []
+            if is_pdf:
+                pdf_doc = fitz.open(stream=file_content, filetype="pdf")
+                mat = fitz.Matrix(200 / 72, 200 / 72)
+                for i in range(len(pdf_doc)):
+                    pix = pdf_doc[i].get_pixmap(matrix=mat)
+                    pages.append((f"page_{i + 1}.png", f"第 {i + 1} 頁", pix.tobytes("png")))
+                pdf_doc.close()
+            else:
+                pages.append((file.filename or "image.png", None, file_content))
 
-                response = await client.post(
-                    f"{OCR_API_BASE_URL}/ocr/recognize",
-                    files=files,
-                    data=data
-                )
-
-                if response.status_code == 200:
-                    result = response.json()
-                    ocr_text = result.get("text", "")
-                    confidence = result.get("confidence", 0.9)
-                else:
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail=f"External OCR failed: {response.text}"
-                    )
+            if pages:
+                async with httpx.AsyncClient(timeout=600) as client:
+                    parts = []
+                    confidences = []
+                    sem = asyncio.Semaphore(2)
+                    async def ocr_ppocr(fname, label, img_bytes):
+                        async with sem:
+                            files = {"file": (fname, img_bytes, "image/png" if is_pdf else content_type)}
+                            data = {"model": model, "language": language}
+                            try:
+                                response = await client.post(
+                                    f"{OCR_API_BASE_URL}/ocr/recognize",
+                                    files=files,
+                                    data=data,
+                                )
+                                if response.status_code == 200:
+                                    result = response.json()
+                                    t = (result.get("text") or "").strip()
+                                    return (result.get("confidence", 0.9), f"--- {label} ---\n{t}" if label else t)
+                                msg = f"[辨識失敗 {response.status_code}]"
+                                return (0.0, f"--- {label} ---\n{msg}" if label else msg)
+                            except httpx.TimeoutException:
+                                msg = "[辨識失敗: 單頁超時]"
+                                return (0.0, f"--- {label} ---\n{msg}" if label else msg)
+                    results = await asyncio.gather(*(ocr_ppocr(f, l, b) for f, l, b in pages))
+                    for c, txt in results:
+                        if c > 0:
+                            confidences.append(c)
+                        parts.append(txt)
+                    ocr_text = "\n\n".join(parts)
+                    confidence = sum(confidences) / len(confidences) if confidences else 0.9
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="OCR request timed out")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"External OCR error: {e}")
             raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
@@ -3243,6 +4278,167 @@ async def get_deepseek_balance(admin: Dict = Depends(get_admin_user)):
             }
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"無法連接到 DeepSeek API: {str(e)}")
+
+
+# ================================================================
+# Usage logs (admin-only)
+# ================================================================
+
+@app.get("/api/usage")
+async def list_usage_logs(
+    admin: Dict = Depends(get_admin_user),
+    username: Optional[str] = None,
+    endpoint: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """List usage logs with optional filters."""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
+
+    where = []
+    params: List[Any] = []
+    if username:
+        where.append("username = %s")
+        params.append(username)
+    if endpoint:
+        where.append("endpoint LIKE %s")
+        params.append(f"%{endpoint}%")
+    if start_date:
+        where.append("request_at >= %s")
+        params.append(start_date)
+    if end_date:
+        where.append("request_at <= %s")
+        params.append(end_date)
+    if status == "ok":
+        where.append("status_code < 400")
+    elif status == "error":
+        where.append("status_code >= 400")
+
+    where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(f"SELECT COUNT(*) AS c FROM usage_logs{where_sql}", params)
+                total = (await cur.fetchone())["c"]
+
+                await cur.execute(
+                    f"""SELECT id, username, endpoint, method, model,
+                              prompt_tokens, completion_tokens, total_tokens,
+                              status_code, response_time_ms, ip_address,
+                              error_message, request_at
+                       FROM usage_logs{where_sql}
+                       ORDER BY request_at DESC
+                       LIMIT %s OFFSET %s""",
+                    params + [limit, offset]
+                )
+                rows = await cur.fetchall()
+
+        for r in rows:
+            if r.get("request_at"):
+                r["request_at"] = r["request_at"].isoformat()
+        return {"total": total, "limit": limit, "offset": offset, "logs": rows}
+    except Exception as e:
+        logger.error(f"Failed to list usage logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/usage/summary")
+async def usage_summary(
+    admin: Dict = Depends(get_admin_user),
+    days: int = 7,
+):
+    """Aggregated stats: per-user totals + per-endpoint breakdown for the last N days."""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    days = max(1, min(days, 90))
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(
+                    """SELECT
+                          COALESCE(username, '(anonymous)') AS username,
+                          COUNT(*) AS requests,
+                          SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS errors,
+                          SUM(total_tokens) AS tokens,
+                          AVG(response_time_ms) AS avg_ms,
+                          MAX(request_at) AS last_used
+                       FROM usage_logs
+                       WHERE request_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                       GROUP BY username
+                       ORDER BY requests DESC""",
+                    (days,)
+                )
+                per_user = await cur.fetchall()
+
+                await cur.execute(
+                    """SELECT endpoint,
+                              COUNT(*) AS requests,
+                              SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS errors
+                       FROM usage_logs
+                       WHERE request_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                       GROUP BY endpoint
+                       ORDER BY requests DESC""",
+                    (days,)
+                )
+                per_endpoint = await cur.fetchall()
+
+        for r in per_user:
+            if r.get("last_used"):
+                r["last_used"] = r["last_used"].isoformat()
+            r["avg_ms"] = float(r["avg_ms"]) if r["avg_ms"] is not None else 0
+            r["tokens"] = int(r["tokens"] or 0)
+
+        return {
+            "days": days,
+            "per_user": per_user,
+            "per_endpoint": per_endpoint,
+            "retention_days": USAGE_LOG_RETENTION_DAYS,
+        }
+    except Exception as e:
+        logger.error(f"Failed to compute usage summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/usage")
+async def prune_usage_logs(
+    admin: Dict = Depends(get_admin_user),
+    older_than_days: Optional[int] = None,
+):
+    """Manually prune usage_logs.
+    older_than_days defaults to USAGE_LOG_RETENTION_DAYS.
+    Pass older_than_days=0 to delete everything."""
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    if older_than_days is None:
+        older_than_days = USAGE_LOG_RETENTION_DAYS
+    if older_than_days < 0:
+        raise HTTPException(status_code=400, detail="older_than_days must be >= 0")
+
+    try:
+        if older_than_days == 0:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("DELETE FROM usage_logs")
+                    deleted = cur.rowcount or 0
+        else:
+            deleted = await _prune_usage_logs(older_than_days)
+
+        logger.info(f"Admin '{admin['username']}' pruned {deleted} usage_logs rows (older_than_days={older_than_days})")
+        return {"deleted": deleted, "older_than_days": older_than_days}
+    except Exception as e:
+        logger.error(f"Failed to prune usage_logs manually: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
