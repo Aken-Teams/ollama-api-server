@@ -1126,6 +1126,22 @@ console.log('轉錄結果:', result.text);</pre>
         .agent-route-pill[data-route="quick"]    { background: #ecfccb; color: #3f6212; border-color: #a3e635; }
         .agent-route-pill[data-route="general"]  { background: #dbeafe; color: #1e40af; border-color: #60a5fa; }
 
+        .agent-prompt-buttons {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 12px; padding: 8px 12px; background: #faf5ff;
+            border: 1px dashed #c4b5fd; border-radius: 8px;
+        }
+        .agent-prompt-label { font-size: 12px; color: #6b21a8; font-weight: 600; }
+        .agent-prompt-btn {
+            font-size: 12px !important; padding: 5px 12px !important;
+            border: 1px solid !important; font-weight: 600 !important;
+            cursor: pointer; transition: transform 0.1s ease;
+        }
+        .agent-prompt-btn:hover { transform: translateY(-1px); }
+        .agent-prompt-btn[data-tool="claude"]   { background: #fef3c7 !important; color: #92400e !important; border-color: #fbbf24 !important; }
+        .agent-prompt-btn[data-tool="codex"]    { background: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+        .agent-prompt-btn[data-tool="opencode"] { background: #e0e7ff !important; color: #3730a3 !important; border-color: #a5b4fc !important; }
+
         .agent-chat-box {
             background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
             min-height: 320px; max-height: 540px; padding: 16px;
@@ -1996,12 +2012,18 @@ console.log('轉錄結果:', result.text);</pre>
         <span class="agent-route-pill" data-route="vision">vision → Qwen2.5-VL 7B</span>
         <span class="agent-route-pill" data-route="quick">quick → Qwen2.5 1.5B</span>
         <span class="agent-route-pill" data-route="general">general → Gemma 3 27B</span>
-        <button class="btn btn-secondary btn-small" type="button"
-                style="margin-left:auto;background:#faf5ff;color:#7c3aed;border-color:#c4b5fd;"
-                onclick="copyAgentApiPrompt()"
-                title="複製給 Claude Code / Cursor / Copilot 用的完整 prompt — 包含 endpoint / key / 範例">
-            複製給 AI（外部使用）
-        </button>
+    </div>
+    <div class="agent-prompt-buttons">
+        <span class="agent-prompt-label">複製給：</span>
+        <button class="btn btn-small agent-prompt-btn" data-tool="claude"
+                type="button" onclick="copyAgentApiPrompt('claude')"
+                title="貼到 Claude Code，或存成 CLAUDE.md">Claude Code</button>
+        <button class="btn btn-small agent-prompt-btn" data-tool="codex"
+                type="button" onclick="copyAgentApiPrompt('codex')"
+                title="貼到 OpenAI Codex CLI，或存成 AGENTS.md">Codex</button>
+        <button class="btn btn-small agent-prompt-btn" data-tool="opencode"
+                type="button" onclick="copyAgentApiPrompt('opencode')"
+                title="貼到 OpenCode CLI，或存成 AGENTS.md">OpenCode</button>
     </div>
 
     <div id="agent-chat-box" class="agent-chat-box" aria-live="polite"></div>

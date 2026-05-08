@@ -104,15 +104,57 @@ async function sendAgentMessage() {
     }
 }
 
-// 給外部 AI 編輯器（Claude Code / Cursor / Copilot）的完整 prompt
+// 給外部 AI 編輯器（Claude Code / Codex / OpenCode）的完整 prompt
 // 內嵌一把專供外部 agent 使用的固定 API key（aken 配發），不跟隨登入者的個人 key。
 const _AGENT_PUBLIC_API_KEY = 'n0g1Yd0ulKs8gZMTU8lrBr-aurQ1OTcuB9OOBrAgkEg';
 
-function copyAgentApiPrompt() {
+// 各工具的小差異：標題、CLI 名稱、慣用的記憶檔案。Prompt 主體共用。
+const _AGENT_TOOL_PROFILES = {
+    claude: {
+        label: 'Claude Code',
+        cli: 'claude',
+        memoryFile: 'CLAUDE.md',
+        intro: '你是 Claude Code。請依下面規格在我目前的專案中加入這個 Agent API。',
+        usage: [
+            '把整段貼進 Claude Code 對話即可開工。',
+            '若想讓 Claude Code 以後自動知道，把整段存到專案根目錄的 `CLAUDE.md`。',
+        ],
+    },
+    codex: {
+        label: 'OpenAI Codex CLI',
+        cli: 'codex',
+        memoryFile: 'AGENTS.md',
+        intro: '你是 Codex（OpenAI Codex CLI）。請依下面規格在我目前的專案中加入這個 Agent API。',
+        usage: [
+            '把整段貼進 Codex 對話開工：`codex` 然後直接貼。',
+            '常駐：把整段存到專案根目錄的 `AGENTS.md`，Codex 會自動讀。',
+            '注意 Codex 預設讀 `OPENAI_API_KEY` / `OPENAI_BASE_URL`，本端點剛好就是 OpenAI 相容，不用另設。',
+        ],
+    },
+    opencode: {
+        label: 'OpenCode',
+        cli: 'opencode',
+        memoryFile: 'AGENTS.md',
+        intro: '你是 OpenCode 編輯助理。請依下面規格在我目前的專案中加入這個 Agent API。',
+        usage: [
+            '把整段貼進 OpenCode 對話：執行 `opencode`，貼上即可。',
+            '常駐：存到專案根目錄的 `AGENTS.md`（OpenCode 與其他 AGENTS-aware 工具都會讀）。',
+        ],
+    },
+};
+
+function copyAgentApiPrompt(tool) {
+    const profile = _AGENT_TOOL_PROFILES[tool] || _AGENT_TOOL_PROFILES.claude;
     const baseUrl = (typeof EXTERNAL_URL !== 'undefined' && EXTERNAL_URL) ? EXTERNAL_URL : window.location.origin;
     const apiKey = _AGENT_PUBLIC_API_KEY;
 
     const text = `# 任務：把這個 Agent（自動挑模型）端點接到我目前的專案
+
+> 工具：**${profile.label}**
+> ${profile.intro}
+
+## 怎麼使用這份指引
+${profile.usage.map(s => '- ' + s).join('\n')}
 
 ## 連線資訊
 - **Base URL**：\`${baseUrl}\`
@@ -240,7 +282,7 @@ curl -X POST ${baseUrl}/v1/chat/completions \\
 請依以上規格在我的專案中實作。完成後請示範一個跑得起來的測試請求。`;
 
     navigator.clipboard.writeText(text).then(() => {
-        alert('Agent API 提示詞已複製。貼到 Claude Code / Cursor / Copilot Chat 即可。');
+        alert(`已複製 ${profile.label} 版本的 Agent API 提示詞。\n貼到 ${profile.cli} 對話，或存到 ${profile.memoryFile}。`);
     }).catch(err => {
         alert('複製失敗：' + err.message);
     });
