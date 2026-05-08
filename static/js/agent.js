@@ -2,6 +2,10 @@
 // AGENT 對話 — 用 model="auto" 走 backend LLM router
 // ==========================================================================
 
+const _AGENT_SYSTEM_PROMPT =
+    '你是一個繁體中文助理。請務必使用繁體中文（台灣慣用語）回答，' +
+    '不要使用簡體中文。技術名詞、程式碼、英文專有名詞可以保留原文。';
+
 const _agentMessages = [];
 
 function _agentRender() {
@@ -44,7 +48,8 @@ async function sendAgentMessage() {
 
     const start = Date.now();
     try {
-        // 把所有對話歷史一起送，router 拿最後一條 user 訊息分類
+        // 把所有對話歷史一起送，router 拿最後一條 user 訊息分類；
+        // 在最前面塞 system prompt 強制繁體中文回應。
         const history = _agentMessages
             .filter(m => !m.thinking)
             .map(m => ({ role: m.role, content: m.content }));
@@ -54,7 +59,10 @@ async function sendAgentMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'auto',
-                messages: history,
+                messages: [
+                    { role: 'system', content: _AGENT_SYSTEM_PROMPT },
+                    ...history,
+                ],
                 max_tokens: 1024,
                 stream: false,
             }),
