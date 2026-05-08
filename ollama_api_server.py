@@ -59,6 +59,9 @@ MODEL_ENDPOINT_MAP = {
     "Qwen3-Embedding-8B": f"http://{_LLAMA_HOST}:21182/v1",
     "bge-reranker-v2-m3": f"http://{_LLAMA_HOST}:21183/v1",
     "mlx-community/Qwen2.5-1.5B-Instruct-4bit": f"http://{_LLAMA_HOST}:21191/v1",
+    "mlx-community/gpt-oss-120b-MXFP4-Q4": f"http://{_LLAMA_HOST}:21192/v1",
+    "mlx-community/gemma-3-27b-it-qat-4bit": f"http://{_LLAMA_HOST}:21193/v1",
+    "mlx-community/Qwen2.5-VL-7B-Instruct-4bit": f"http://{_LLAMA_HOST}:21194/v1",
 }
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
@@ -209,6 +212,33 @@ MODEL_INFO = {
         "description": "Apple MLX 加速的小型 Qwen 模型，啟動極快、超低延遲，適合即時／嵌入式場景",
         "features": ["1.5B 參數", "4-bit 量化 ~839MB", "Apple Silicon 原生加速", "極低延遲"],
         "best_for": "即時對話、命名實體擷取、輕量分類、低成本任務",
+        "context_length": "32K tokens"
+    },
+    "mlx-community/gpt-oss-120b-MXFP4-Q4": {
+        "name": "GPT-OSS 120B (MLX)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "GPT-OSS 120B 的 Apple MLX 版本（MXFP4-Q4），相較 llama.cpp Metal 通常快 1.3–2x，記憶體更穩",
+        "features": ["120B 參數", "MXFP4-Q4 量化", "Apple Silicon 原生加速", "高吞吐"],
+        "best_for": "大模型推理、複雜問答、程式碼生成（M3 Ultra 高效運行）",
+        "context_length": "131K tokens"
+    },
+    "mlx-community/gemma-3-27b-it-qat-4bit": {
+        "name": "Gemma 3 27B (MLX, QAT 4-bit)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "Gemma 3 27B 的 Apple MLX 版本，使用 QAT 4-bit 量化（量化感知訓練），4-bit 下品質接近 bf16",
+        "features": ["27B 參數", "QAT 4-bit 量化", "視覺能力", "Apple Silicon 原生加速"],
+        "best_for": "本地大模型對話、長文檔分析、視覺理解",
+        "context_length": "131K tokens"
+    },
+    "mlx-community/Qwen2.5-VL-7B-Instruct-4bit": {
+        "name": "Qwen 2.5 VL 7B (MLX-VLM)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "Qwen2.5-VL 視覺語言模型 MLX 版本，支援圖片理解與 OCR，啟動快、低延遲",
+        "features": ["7B 參數", "視覺＋文字", "4-bit 量化 ~5GB", "Apple Silicon 原生加速"],
+        "best_for": "圖片問答、文件理解、本地 OCR、視覺 RAG",
         "context_length": "32K tokens"
     },
     "Qwen3-Embedding-8B": {
