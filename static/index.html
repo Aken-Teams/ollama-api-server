@@ -70,6 +70,7 @@
     <ul class="sidebar-nav">
         <li><a class="active" data-tab="dashboard" onclick="switchTab('dashboard', this)"><span class="nav-icon">&#9632;</span><span>總覽</span></a></li>
         <li><a data-tab="tools" onclick="switchTab('tools', this)"><span class="nav-icon">&#9881;</span><span>AI 模型</span></a></li>
+        <li id="agent-nav" style="display: none;"><a data-tab="agent" onclick="switchTab('agent', this)"><span class="nav-icon">&#9650;</span><span>Agent 對話</span></a></li>
         <li id="admin-nav" style="display: none;"><a data-tab="admin" onclick="switchTab('admin', this)"><span class="nav-icon">&#9874;</span><span>管理</span></a></li>
         <li id="sysconfig-nav" style="display: none;"><a data-tab="sysconfig" onclick="switchTab('sysconfig', this)"><span class="nav-icon">&#9881;</span><span>系統設定</span></a></li>
         <li><a data-tab="docs" onclick="switchTab('docs', this)"><span class="nav-icon">&#9776;</span><span>文檔</span></a></li>
@@ -1111,6 +1112,65 @@ console.log('轉錄結果:', result.text);</pre>
         .bench-source-badge.local { background: #dcfce7; color: #166534; }
         .btn-small { padding: 4px 12px !important; font-size: 12px !important; }
 
+        /* === Agent 對話 === */
+        .agent-routing-summary {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+        }
+        .agent-route-pill {
+            display: inline-block; padding: 4px 10px; border-radius: 999px;
+            font-size: 12px; font-weight: 600; border: 1px solid;
+        }
+        .agent-route-pill[data-route="code"]     { background: #fef3c7; color: #92400e; border-color: #fbbf24; }
+        .agent-route-pill[data-route="reasoning"]{ background: #fae8ff; color: #6b21a8; border-color: #c084fc; }
+        .agent-route-pill[data-route="vision"]   { background: #cffafe; color: #155e75; border-color: #67e8f9; }
+        .agent-route-pill[data-route="quick"]    { background: #ecfccb; color: #3f6212; border-color: #a3e635; }
+        .agent-route-pill[data-route="general"]  { background: #dbeafe; color: #1e40af; border-color: #60a5fa; }
+
+        .agent-chat-box {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+            min-height: 320px; max-height: 540px; padding: 16px;
+            overflow-y: auto; margin-bottom: 12px;
+        }
+        .agent-msg { display: flex; gap: 10px; margin-bottom: 14px; }
+        .agent-msg-role {
+            flex-shrink: 0; width: 60px; font-size: 11px; font-weight: 700;
+            color: #64748b; text-transform: uppercase; padding-top: 8px;
+        }
+        .agent-msg.user .agent-msg-role { color: #0284c7; }
+        .agent-msg.assistant .agent-msg-role { color: #16a34a; }
+        .agent-msg-bubble {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 10px 14px; font-size: 14px; line-height: 1.6;
+            color: #1e293b; flex: 1; min-width: 0;
+            white-space: pre-wrap; word-wrap: break-word;
+        }
+        .agent-msg.user .agent-msg-bubble { background: #f0f9ff; border-color: #bae6fd; }
+        .agent-msg-meta {
+            margin-top: 6px; font-size: 11px; color: #64748b;
+            display: flex; gap: 10px; flex-wrap: wrap;
+        }
+        .agent-msg-meta .agent-route-pill { padding: 2px 8px; font-size: 11px; }
+        .agent-empty {
+            color: #94a3b8; text-align: center; font-size: 13px;
+            padding: 60px 20px;
+        }
+        .agent-input-row {
+            display: flex; gap: 10px; align-items: flex-end;
+        }
+        .agent-input-row textarea {
+            flex: 1; padding: 10px 12px; border: 1px solid #cbd5e0;
+            border-radius: 8px; font-size: 14px; font-family: inherit;
+            resize: vertical; line-height: 1.5;
+        }
+        .agent-input-row textarea:focus {
+            outline: none; border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2,132,199,0.1);
+        }
+        .agent-input-actions {
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .agent-input-actions .btn { white-space: nowrap; }
+        .agent-thinking { color: #94a3b8; font-style: italic; }
+
         .markdown-pretty { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif; color: #1e293b; line-height: 1.75; font-size: 14.5px; }
         .markdown-pretty h1 { font-size: 22px; margin: 18px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; color: #0f172a; }
         .markdown-pretty h2 { font-size: 18px; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; color: #1e40af; }
@@ -1924,6 +1984,32 @@ console.log('轉錄結果:', result.text);</pre>
 
 </div>
 
+<div id="agent" class="content">
+    <h2 style="margin-top:0;">Agent 對話 <span style="font-size:13px;color:#94a3b8;font-weight:normal;">/v1/chat/completions · model="auto"</span></h2>
+    <p style="color:#475569;font-size:14px;margin-bottom:14px;">
+        Router 會用最小的 Qwen2.5-1.5B 自動分類你的需求（code / reasoning / vision / quick / general），轉發給最適合的本地模型，回應裡會有 <code>agent_route</code> 標記實際走的路徑。
+    </p>
+
+    <div class="agent-routing-summary">
+        <span class="agent-route-pill" data-route="code">code → gpt-oss 120B</span>
+        <span class="agent-route-pill" data-route="reasoning">reasoning → gpt-oss 120B</span>
+        <span class="agent-route-pill" data-route="vision">vision → Qwen2.5-VL 7B</span>
+        <span class="agent-route-pill" data-route="quick">quick → Qwen2.5 1.5B</span>
+        <span class="agent-route-pill" data-route="general">general → Gemma 3 27B</span>
+    </div>
+
+    <div id="agent-chat-box" class="agent-chat-box" aria-live="polite"></div>
+
+    <div class="agent-input-row">
+        <textarea id="agent-input" rows="3" placeholder="輸入訊息（Enter 送出 / Shift+Enter 換行）"
+                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendAgentMessage();}"></textarea>
+        <div class="agent-input-actions">
+            <button class="btn" onclick="sendAgentMessage()" id="agent-send-btn">送出</button>
+            <button class="btn btn-secondary" onclick="clearAgentChat()" type="button">清空對話</button>
+        </div>
+    </div>
+</div>
+
 <div id="docs" class="content">
     <h2>API 使用文檔</h2>
 
@@ -2158,6 +2244,7 @@ for name, status in response.json()["endpoints"].items():
     <script src="/static/js/ocr.js"></script>
     <script src="/static/js/permissions.js"></script>
     <script src="/static/js/usage.js"></script>
+    <script src="/static/js/agent.js"></script>
 
     <!-- RWD: close mobile drawer when nav item is tapped -->
     <script>

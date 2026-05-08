@@ -86,11 +86,35 @@ OLLAMA_LOCAL_MODELS = ["gemma3:27b", "gemma4:latest", "nemotron3:33b"]
 # Whitelist of models accepted by /v1/chat/completions.
 # llama.cpp ignores the `model` field (it serves whatever is loaded), so without
 # this guard any garbage string would silently route to a random llama.cpp endpoint.
+# "auto" / "agent" are virtual aliases for the LLM router (see route_for_agent).
+AGENT_VIRTUAL_MODELS = {"auto", "agent"}
 KNOWN_CHAT_MODELS = (
     set(MODEL_ENDPOINT_MAP.keys())
     | set(DEEPSEEK_MODELS)
     | set(QWEN_VL_MODELS)
     | set(OLLAMA_LOCAL_MODELS)
+    | AGENT_VIRTUAL_MODELS
+)
+
+# === Agent routing (model="auto") ===
+# A small fast model classifies the request, then we forward to the chosen target.
+ROUTER_MODEL = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
+ROUTING_TARGETS = {
+    "code":      "mlx-community/gpt-oss-120b-MXFP4-Q4",
+    "reasoning": "mlx-community/gpt-oss-120b-MXFP4-Q4",
+    "vision":    "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+    "quick":     "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+    "general":   "mlx-community/gemma-3-27b-it-qat-4bit",
+}
+ROUTER_CLASSIFIER_PROMPT = (
+    "Classify the user request into ONE category. Reply with ONLY the category word.\n\n"
+    "Categories:\n"
+    "- code: programming, debugging, code review, software engineering\n"
+    "- reasoning: math, logic, step-by-step analysis, complex problem solving\n"
+    "- quick: short greeting or simple factual lookup (under one sentence)\n"
+    "- general: writing, knowledge, summarization, casual chat, anything else\n\n"
+    "User: {prompt}\n\n"
+    "Category:"
 )
 
 # Speech-to-Text API Configuration
@@ -1264,6 +1288,85 @@ def clean_deepseek_r1_response(content: str) -> str:
     return final
 
 
+def _agent_extract_last_user_text(messages) -> str:
+    """Pull the last user message as plain text (collapsing multi-part content)."""
+    for m in reversed(messages):
+        if m.get("role") != "user":
+            continue
+        content = m.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return " ".join(
+                item.get("text", "") for item in content
+                if isinstance(item, dict) and item.get("type") == "text"
+            )
+    return ""
+
+
+def _agent_has_vision_content(messages) -> bool:
+    for m in messages:
+        content = m.get("content")
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "image_url":
+                    return True
+    return False
+
+
+async def route_for_agent(request_data: dict):
+    """Pick a target model for `model: "auto"`. Returns (model_id, route_label).
+
+    Heuristic shortcuts skip the LLM call when the choice is obvious:
+    - any image attachment -> vision
+    - very short prompts    -> quick
+
+    Otherwise the small Qwen2.5-1.5B classifier picks one of the labels and
+    we look it up in ROUTING_TARGETS. Anything weird falls back to general.
+    """
+    messages = request_data.get("messages", [])
+
+    if _agent_has_vision_content(messages):
+        return ROUTING_TARGETS["vision"], "vision"
+
+    last_text = _agent_extract_last_user_text(messages).strip()
+    if not last_text:
+        return ROUTING_TARGETS["quick"], "quick"
+    if len(last_text) < 12:
+        return ROUTING_TARGETS["quick"], "quick"
+
+    import re
+    classifier_prompt = ROUTER_CLASSIFIER_PROMPT.format(prompt=last_text[:1200])
+    endpoint = MODEL_ENDPOINT_MAP.get(ROUTER_MODEL)
+    if not endpoint:
+        logger.warning("Agent router model not registered, defaulting to general")
+        return ROUTING_TARGETS["general"], "general"
+
+    try:
+        timeout = httpx.Timeout(connect=5.0, read=15.0, write=5.0, pool=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(
+                f"{endpoint}/chat/completions",
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"},
+                json={
+                    "model": ROUTER_MODEL,
+                    "messages": [{"role": "user", "content": classifier_prompt}],
+                    "max_tokens": 8,
+                    "temperature": 0.0,
+                    "stream": False,
+                },
+            )
+            resp.raise_for_status()
+            raw = resp.json()["choices"][0]["message"]["content"]
+            label = re.split(r"[\s,.\n:]+", raw.strip().lower())[0].strip(".:")
+            if label in ROUTING_TARGETS:
+                return ROUTING_TARGETS[label], label
+    except Exception as e:
+        logger.warning(f"Agent router classifier failed, falling back to general: {e}")
+
+    return ROUTING_TARGETS["general"], "general"
+
+
 def convert_openai_to_ollama_format(request_data: dict) -> dict:
     """Convert OpenAI-style image format to Ollama format"""
     converted_data = request_data.copy()
@@ -1458,7 +1561,15 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
 
     reject_unknown_chat_model(request.model)
 
-    # Permission check: allowed models
+    # === Agent routing: model="auto"/"agent" -> classify -> pick real model ===
+    agent_route_label = None
+    if request.model in AGENT_VIRTUAL_MODELS:
+        target_model, agent_route_label = await route_for_agent(request_data)
+        logger.info(f"agent route: {request.model} -> {agent_route_label} -> {target_model}")
+        request.model = target_model
+        request_data["model"] = target_model
+
+    # Permission check: allowed models (post-routing — check the real target)
     perms = user.get("permissions", {})
     allowed_models = perms.get("allowed_models")
     if allowed_models is not None and request.model not in allowed_models:
@@ -1716,7 +1827,10 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         username=user.get('username')
                     )
 
-                    return JSONResponse(content=result)
+                    if agent_route_label:
+                        result["agent_route"] = agent_route_label
+                    headers = {"x-agent-route": agent_route_label} if agent_route_label else None
+                    return JSONResponse(content=result, headers=headers)
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
             record_conversation(
@@ -1730,7 +1844,7 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
             )
             raise HTTPException(status_code=500, detail=str(e))
 
-    # Handle Ollama request - route to the correct endpoint based on model
+    # Handle MLX/llama.cpp request - route to the correct endpoint based on model
     endpoint = get_available_endpoint(request.model)
 
     if not endpoint:
@@ -1833,7 +1947,10 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         username=user.get('username')
                     )
 
-                    return JSONResponse(content=result)
+                    if agent_route_label:
+                        result["agent_route"] = agent_route_label
+                    headers = {"x-agent-route": agent_route_label} if agent_route_label else None
+                    return JSONResponse(content=result, headers=headers)
         except HTTPException as e:
             if attempt < 2:  # Try another endpoint
                 logger.warning(f"Attempt {attempt + 1} failed for {endpoint}, trying another endpoint")
