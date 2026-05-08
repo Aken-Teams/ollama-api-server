@@ -1996,6 +1996,12 @@ console.log('轉錄結果:', result.text);</pre>
         <span class="agent-route-pill" data-route="vision">vision → Qwen2.5-VL 7B</span>
         <span class="agent-route-pill" data-route="quick">quick → Qwen2.5 1.5B</span>
         <span class="agent-route-pill" data-route="general">general → Gemma 3 27B</span>
+        <button class="btn btn-secondary btn-small" type="button"
+                style="margin-left:auto;background:#faf5ff;color:#7c3aed;border-color:#c4b5fd;"
+                onclick="copyAgentApiPrompt()"
+                title="複製給 Claude Code / Cursor / Copilot 用的完整 prompt — 包含 endpoint / key / 範例">
+            複製給 AI（外部使用）
+        </button>
     </div>
 
     <div id="agent-chat-box" class="agent-chat-box" aria-live="polite"></div>
