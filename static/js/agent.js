@@ -105,14 +105,12 @@ async function sendAgentMessage() {
 }
 
 // 給外部 AI 編輯器（Claude Code / Cursor / Copilot）的完整 prompt
+// 內嵌一把專供外部 agent 使用的固定 API key（aken 配發），不跟隨登入者的個人 key。
+const _AGENT_PUBLIC_API_KEY = 'n0g1Yd0ulKs8gZMTU8lrBr-aurQ1OTcuB9OOBrAgkEg';
+
 function copyAgentApiPrompt() {
     const baseUrl = (typeof EXTERNAL_URL !== 'undefined' && EXTERNAL_URL) ? EXTERNAL_URL : window.location.origin;
-    const apiKey = (typeof currentApiKey !== 'undefined' && currentApiKey) ? currentApiKey : 'YOUR_API_KEY';
-
-    if (apiKey === 'pj-admin-zhpjaiaoi-2024') {
-        alert('你目前用的是系統預設金鑰，請登出後用個人帳號登入以拿到專屬 API Key。');
-        return;
-    }
+    const apiKey = _AGENT_PUBLIC_API_KEY;
 
     const text = `# 任務：把這個 Agent（自動挑模型）端點接到我目前的專案
 
