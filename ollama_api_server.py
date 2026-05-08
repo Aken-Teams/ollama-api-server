@@ -1207,48 +1207,61 @@ async def forward_to_deepseek(request_data: dict, stream: bool = False):
             yield response.content
 
 
-def clean_deepseek_r1_response(content: str) -> str:
-    """Clean DeepSeek-R1 thinking tokens from response content.
+def split_harmony_response(content: str):
+    """Split a reasoning-style response into (final_answer, reasoning).
 
-    DeepSeek-R1 outputs thinking process with special tokens like:
-    1. <think>...</think> format (common format)
-    2. <|channel|>analysis<|message|>...<|end|><|start|>assistant<|channel|>final<|message|>... format
+    Handles two formats:
+    1. <think>reasoning</think>final
+    2. gpt-oss harmony:
+       <|channel|>analysis<|message|>reasoning<|end|>
+       <|start|>assistant<|channel|>final<|message|>final<|return|>
 
-    This function extracts only the final response.
+    Either returned value may be "". When the model was cut off mid-reasoning
+    and never reached the final channel, final is "" and reasoning holds the
+    partial thought — callers can decide whether to surface it.
     """
     import re
 
     if not content:
-        return content
+        return "", ""
 
-    # Pattern 1: Handle <think>...</think> format
-    if '<think>' in content:
-        # Remove <think>...</think> block and keep the rest
-        cleaned = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
-        cleaned = cleaned.strip()
-        if cleaned:
-            return cleaned
-        # If nothing left after removing think block, the thinking was incomplete
-        # Return content after </think> if exists, otherwise return as-is
-        if '</think>' in content:
-            parts = content.split('</think>', 1)
-            if len(parts) > 1 and parts[1].strip():
-                return parts[1].strip()
+    # <think>...</think>
+    if '<think>' in content or '</think>' in content:
+        m = re.search(r'<think>(.*?)</think>', content, flags=re.DOTALL)
+        reasoning = m.group(1).strip() if m else ''
+        final = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+        if not final and '</think>' in content:
+            tail = content.split('</think>', 1)[1].strip()
+            final = tail
+        if not reasoning and '<think>' in content and '</think>' not in content:
+            reasoning = content.split('<think>', 1)[1].strip()
+        return final, reasoning
 
-    # Pattern 2: Handle <|channel|>...<|message|>... format
+    # gpt-oss harmony: <|channel|>X<|message|>Y
     if '<|channel|>' in content or '<|message|>' in content:
-        # Try to extract the final response after <|channel|>final<|message|>
-        final_pattern = r'<\|channel\|>final<\|message\|>(.*?)(?:<\|end\|>|$)'
-        final_match = re.search(final_pattern, content, re.DOTALL)
+        analysis = ''
+        m = re.search(
+            r'<\|channel\|>analysis<\|message\|>(.*?)(?:<\|end\|>|<\|start\|>|<\|channel\|>|$)',
+            content, flags=re.DOTALL,
+        )
+        if m:
+            analysis = m.group(1).strip()
+        final = ''
+        m = re.search(
+            r'<\|channel\|>final<\|message\|>(.*?)(?:<\|end\|>|<\|return\|>|<\|endoftext\|>|$)',
+            content, flags=re.DOTALL,
+        )
+        if m:
+            final = m.group(1).strip()
+        return final, analysis
 
-        if final_match:
-            return final_match.group(1).strip()
+    return content, ""
 
-        # Fallback: remove all thinking tokens and keep the rest
-        cleaned = re.sub(r'<\|[^|]+\|>', '', content)
-        return cleaned.strip()
 
-    return content
+def clean_deepseek_r1_response(content: str) -> str:
+    """Return only the final answer, stripping reasoning. Back-compat shim."""
+    final, _reasoning = split_harmony_response(content)
+    return final
 
 
 def convert_openai_to_ollama_format(request_data: dict) -> dict:
@@ -1396,8 +1409,10 @@ async def forward_to_qwen_vl(request_data: dict, stream: bool = False):
             # Convert Ollama response to OpenAI format
             ollama_response = response.json()
             raw_content = ollama_response.get("message", {}).get("content", "")
-            # Clean DeepSeek-R1 thinking tokens if present
-            cleaned_content = clean_deepseek_r1_response(raw_content)
+            cleaned_content, reasoning_content = split_harmony_response(raw_content)
+            assistant_msg = {"role": "assistant", "content": cleaned_content}
+            if reasoning_content:
+                assistant_msg["reasoning_content"] = reasoning_content
             openai_response = {
                 "id": "chatcmpl-ollama",
                 "object": "chat.completion",
@@ -1405,10 +1420,7 @@ async def forward_to_qwen_vl(request_data: dict, stream: bool = False):
                 "model": ollama_request["model"],
                 "choices": [{
                     "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": cleaned_content
-                    },
+                    "message": assistant_msg,
                     "finish_reason": "stop"
                 }],
                 "usage": {
@@ -1800,10 +1812,10 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
 
                     if 'choices' in result and result['choices']:
                         raw_content = result['choices'][0].get('message', {}).get('content', '')
-                        # Clean DeepSeek-R1 thinking tokens if present
-                        response_content = clean_deepseek_r1_response(raw_content)
-                        # Update the result with cleaned content
+                        response_content, reasoning_content = split_harmony_response(raw_content)
                         result['choices'][0]['message']['content'] = response_content
+                        if reasoning_content:
+                            result['choices'][0]['message']['reasoning_content'] = reasoning_content
                     if 'usage' in result:
                         prompt_tokens = result['usage'].get('prompt_tokens', 0)
                         completion_tokens = result['usage'].get('completion_tokens', 0)

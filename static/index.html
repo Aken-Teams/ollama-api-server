@@ -294,6 +294,7 @@
         </div>
 
         <div id="bench-results" class="bench-results" style="display:none;margin-top:18px;">
+            <div id="bench-podium" class="bench-podium" style="display:none;"></div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                 <strong>結果（依總時間排序）</strong>
                 <div>
@@ -305,6 +306,7 @@
                 <table class="bench-table" id="bench-table">
                     <thead>
                         <tr>
+                            <th style="width:54px;">排名</th>
                             <th>模型</th>
                             <th>來源</th>
                             <th>TTFT</th>
@@ -1055,6 +1057,30 @@ console.log('轉錄結果:', result.text);</pre>
         .bench-model-chip.checked { background: #dbeafe; border-color: #60a5fa; color: #1d4ed8; font-weight: 600; }
 
         .bench-results { animation: qckFade 0.2s ease-out; }
+        .bench-podium {
+            display: grid; gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            margin-bottom: 14px;
+        }
+        .bench-podium-card {
+            border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;
+            background: #fff; position: relative; overflow: hidden;
+        }
+        .bench-podium-card.rank-1 { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fff 60%); }
+        .bench-podium-card.rank-2 { border-color: #94a3b8; background: linear-gradient(135deg, #f1f5f9 0%, #fff 60%); }
+        .bench-podium-card.rank-3 { border-color: #c2410c; background: linear-gradient(135deg, #fff7ed 0%, #fff 60%); }
+        .bench-podium-rank {
+            display: inline-block; min-width: 28px; padding: 2px 8px; border-radius: 6px;
+            font-weight: 700; font-size: 13px; color: #fff; text-align: center; margin-right: 8px;
+        }
+        .bench-podium-card.rank-1 .bench-podium-rank { background: #f59e0b; }
+        .bench-podium-card.rank-2 .bench-podium-rank { background: #64748b; }
+        .bench-podium-card.rank-3 .bench-podium-rank { background: #c2410c; }
+        .bench-podium-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .bench-podium-model { font-weight: 600; color: #1e293b; margin-top: 2px;
+                              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+        .bench-podium-stats { margin-top: 6px; font-size: 12px; color: #475569; display: flex; gap: 14px; flex-wrap: wrap; }
+        .bench-podium-stats b { color: #1e293b; font-family: 'SF Mono', Consolas, monospace; }
         .bench-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
         .bench-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .bench-table th { text-align: left; padding: 10px 12px; background: #f8fafc;
@@ -1064,6 +1090,15 @@ console.log('轉錄結果:', result.text);</pre>
         .bench-table tr.bench-winner td { background: #f0fdf4; }
         .bench-table tr.bench-loser td { background: #fef2f2; }
         .bench-table tr.bench-failed td { background: #fef2f2; color: #b91c1c; }
+        .bench-rank-cell {
+            font-weight: 700; font-size: 14px; text-align: center;
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+        .bench-rank-cell.rank-1 { color: #d97706; }
+        .bench-rank-cell.rank-2 { color: #475569; }
+        .bench-rank-cell.rank-3 { color: #c2410c; }
+        .bench-rank-cell.rank-other { color: #94a3b8; font-size: 13px; }
+        .bench-rank-cell.rank-failed { color: #dc2626; font-size: 12px; font-weight: 600; }
         .bench-num { font-family: 'SF Mono', Consolas, monospace; font-weight: 600; }
         .bench-output {
             font-size: 12px; color: #475569; max-width: 280px;

@@ -1102,20 +1102,29 @@ async function runBenchmark() {
     runBtn.textContent = '測試中…';
     resultsBox.style.display = 'block';
     tbody.innerHTML = '';
+    const podium = document.getElementById('bench-podium');
+    if (podium) { podium.innerHTML = ''; podium.style.display = 'none'; }
     _benchResults = [];
 
     let done = 0;
     const total = checked.length * repeat;
     statusEl.textContent = `0 / ${total}`;
 
-    // 先建立佔位列
+    const sourceBadge = (m) => {
+        const tag = _benchProviderTag(m);
+        const cls = tag.toLowerCase().includes('cloud') || tag.toLowerCase() === 'deepseek' ? 'cloud' : 'local';
+        return `<span class="bench-source-badge ${cls}">${tag}</span>`;
+    };
+
+    // 先建立佔位列（含排名欄）
     const rowMap = {};
     for (const m of checked) {
         const tr = document.createElement('tr');
         tr.dataset.model = m;
-        tr.innerHTML = `<td><strong>${m}</strong></td>
-            <td><span class="bench-source-badge ${_benchProviderTag(m).toLowerCase().includes('cloud') || _benchProviderTag(m).toLowerCase()==='deepseek' ? 'cloud' : 'local'}">${_benchProviderTag(m)}</span></td>
-            <td colspan="5" style="color:#94a3b8;">⏳ 等待中…</td>`;
+        tr.innerHTML = `<td class="bench-rank-cell rank-other">—</td>
+            <td><strong>${m}</strong></td>
+            <td>${sourceBadge(m)}</td>
+            <td colspan="5" style="color:#94a3b8;">等待中…</td>`;
         tbody.appendChild(tr);
         rowMap[m] = tr;
     }
@@ -1123,9 +1132,10 @@ async function runBenchmark() {
     // 對每個模型循序跑（避免互相干擾單 GPU）；同模型重複次數取平均
     for (const m of checked) {
         const runs = [];
-        rowMap[m].innerHTML = `<td><strong>${m}</strong></td>
-            <td><span class="bench-source-badge ${_benchProviderTag(m).toLowerCase().includes('cloud') || _benchProviderTag(m).toLowerCase()==='deepseek' ? 'cloud' : 'local'}">${_benchProviderTag(m)}</span></td>
-            <td colspan="5" style="color:#0284c7;">🔄 測試中…</td>`;
+        rowMap[m].innerHTML = `<td class="bench-rank-cell rank-other">—</td>
+            <td><strong>${m}</strong></td>
+            <td>${sourceBadge(m)}</td>
+            <td colspan="5" style="color:#0284c7;">測試中…</td>`;
         for (let i = 0; i < repeat; i++) {
             const r = await _benchOnce(m, prompt, maxTokens);
             runs.push(r);
@@ -1137,9 +1147,10 @@ async function runBenchmark() {
         const failed = runs.length - ok.length;
         if (ok.length === 0) {
             rowMap[m].className = 'bench-failed';
-            rowMap[m].innerHTML = `<td><strong>${m}</strong></td>
-                <td><span class="bench-source-badge ${_benchProviderTag(m).toLowerCase().includes('cloud') || _benchProviderTag(m).toLowerCase()==='deepseek' ? 'cloud' : 'local'}">${_benchProviderTag(m)}</span></td>
-                <td colspan="5">❌ ${runs[0].error || '失敗'}</td>`;
+            rowMap[m].innerHTML = `<td class="bench-rank-cell rank-failed">失敗</td>
+                <td><strong>${m}</strong></td>
+                <td>${sourceBadge(m)}</td>
+                <td colspan="5">${runs[0].error || '失敗'}</td>`;
             _benchResults.push({ model: m, error: runs[0].error });
             continue;
         }
@@ -1151,8 +1162,9 @@ async function runBenchmark() {
         const content = ok[ok.length - 1].content;
         const result = { model: m, ttft, totalMs, tokens, tokps, content, failed, runs: ok.length };
         _benchResults.push(result);
-        rowMap[m].innerHTML = `<td><strong>${m}</strong>${repeat>1?` <span class="hint" style="font-size:10px;">×${repeat}avg</span>`:''}${failed?` <span style="color:#dc2626;font-size:10px;">(失敗${failed})</span>`:''}</td>
-            <td><span class="bench-source-badge ${_benchProviderTag(m).toLowerCase().includes('cloud') || _benchProviderTag(m).toLowerCase()==='deepseek' ? 'cloud' : 'local'}">${_benchProviderTag(m)}</span></td>
+        rowMap[m].innerHTML = `<td class="bench-rank-cell rank-other">—</td>
+            <td><strong>${m}</strong>${repeat>1?` <span class="hint" style="font-size:10px;">×${repeat}avg</span>`:''}${failed?` <span style="color:#dc2626;font-size:10px;">(失敗${failed})</span>`:''}</td>
+            <td>${sourceBadge(m)}</td>
             <td class="bench-num">${(ttft/1000).toFixed(2)}s</td>
             <td class="bench-num">${(totalMs/1000).toFixed(2)}s</td>
             <td class="bench-num">${tokens}</td>
@@ -1160,7 +1172,7 @@ async function runBenchmark() {
             <td><div class="bench-output">${(content || '').replace(/[<>]/g, c => ({'<':'&lt;','>':'&gt;'}[c]))}</div></td>`;
     }
 
-    // 排序：失敗放最後，成功的依 totalMs 升序
+    // 排序：失敗放最後，成功的依 totalMs 升序，並標上排名
     const successRows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.classList.contains('bench-failed'));
     const failedRows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.classList.contains('bench-failed'));
     successRows.sort((a, b) => {
@@ -1170,15 +1182,51 @@ async function runBenchmark() {
     });
     tbody.innerHTML = '';
     successRows.forEach((r, i) => {
-        if (i === 0) r.classList.add('bench-winner');
+        const rank = i + 1;
+        if (rank === 1) r.classList.add('bench-winner');
         if (i === successRows.length - 1 && successRows.length > 1) r.classList.add('bench-loser');
+        const rankCell = r.querySelector('.bench-rank-cell');
+        if (rankCell) {
+            rankCell.textContent = String(rank);
+            rankCell.classList.remove('rank-other', 'rank-1', 'rank-2', 'rank-3');
+            if (rank <= 3) rankCell.classList.add('rank-' + rank);
+            else rankCell.classList.add('rank-other');
+        }
         tbody.appendChild(r);
     });
     failedRows.forEach(r => tbody.appendChild(r));
 
+    // 冠軍卡片
+    _renderBenchPodium(successRows.slice(0, 3).map(r => _benchResults.find(x => x.model === r.dataset.model)).filter(Boolean));
+
     runBtn.disabled = false;
     runBtn.textContent = '▶ 開始 benchmark';
-    statusEl.textContent = `完成 ${total} 次測試`;
+    const failedCount = _benchResults.filter(r => r.error).length;
+    statusEl.textContent = `完成 ${total} 次測試（成功 ${successRows.length} / 失敗 ${failedCount}）`;
+}
+
+function _renderBenchPodium(top) {
+    const podium = document.getElementById('bench-podium');
+    if (!podium) return;
+    if (!top.length) { podium.style.display = 'none'; return; }
+    const labels = ['冠軍', '亞軍', '季軍'];
+    podium.innerHTML = top.map((r, i) => {
+        const name = (r.model || '').replace(/[<>]/g, c => ({'<':'&lt;','>':'&gt;'}[c]));
+        return `
+            <div class="bench-podium-card rank-${i+1}" title="${name}">
+                <div>
+                    <span class="bench-podium-rank">${i+1}</span>
+                    <span class="bench-podium-label">${labels[i]}</span>
+                </div>
+                <div class="bench-podium-model">${name}</div>
+                <div class="bench-podium-stats">
+                    <span>總時間 <b>${(r.totalMs/1000).toFixed(2)}s</b></span>
+                    <span>TTFT <b>${(r.ttft/1000).toFixed(2)}s</b></span>
+                    <span>tok/s <b>${r.tokps.toFixed(1)}</b></span>
+                </div>
+            </div>`;
+    }).join('');
+    podium.style.display = 'grid';
 }
 
 function exportBench(fmt) {
