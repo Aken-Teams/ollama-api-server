@@ -67,7 +67,9 @@ MODEL_ENDPOINT_MAP = {
     "mlx-community/gpt-oss-120b-MXFP4-Q4": f"http://{_LLAMA_HOST}:21192/v1",
     "mlx-community/gemma-3-27b-it-qat-4bit": f"http://{_LLAMA_HOST}:21193/v1",
     "mlx-community/Qwen2.5-VL-7B-Instruct-4bit": f"http://{_LLAMA_HOST}:21194/v1",
-    "mlx-community/Qwen3.6-35B-A3B-bf16": f"http://{_LLAMA_HOST}:21195/v1",
+    "mlx-community/Qwen3.6-35B-A3B-4bit": f"http://{_LLAMA_HOST}:21195/v1",
+    "mlx-community/Qwen2.5-Coder-32B-Instruct-4bit": f"http://{_LLAMA_HOST}:21196/v1",
+    "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit": f"http://{_LLAMA_HOST}:21197/v1",
 }
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
@@ -173,14 +175,32 @@ HIDDEN_MODELS = [
 # Model descriptions and features
 MODEL_INFO = {
     # 地端模型 (Local Models)
-    "mlx-community/Qwen3.6-35B-A3B-bf16": {
-        "name": "Qwen 3.6 35B-A3B (MLX BF16)",
+    "mlx-community/Qwen3.6-35B-A3B-4bit": {
+        "name": "Qwen 3.6 35B-A3B (MLX 4-bit)",
         "type": "local",
         "provider": "MLX",
-        "description": "Qwen3.6 MoE 模型：35B 總參數、僅 3B 激活，BF16 全精度 MLX 版本，推理速度快、品質接近全尺寸（agent 預設 reasoning/general 目標）",
-        "features": ["35B 總參數 / 3B 激活", "BF16 全精度", "256K 長上下文", "MoE 架構（快速推理）", "中英文均強"],
-        "best_for": "中文欄位擷取、文件理解、複雜推理、一般對話（agent 預設路由）",
+        "description": "Qwen3.6 MoE 模型：35B 總參數、僅 3B 激活，4-bit 量化 MLX 版本（~20GB），推理速度快、品質接近全尺寸",
+        "features": ["35B 總參數 / 3B 激活", "4-bit 量化 ~20GB", "256K 長上下文", "MoE 架構（快速推理）", "中英文均強"],
+        "best_for": "中文欄位擷取、文件理解、複雜推理、一般對話",
         "context_length": "256K tokens"
+    },
+    "mlx-community/Qwen2.5-Coder-32B-Instruct-4bit": {
+        "name": "Qwen2.5-Coder 32B (MLX 4-bit)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "Alibaba 程式碼專用 32B 模型，code 寫作/重構/解 bug benchmark 接近 GPT-4 Turbo；4-bit MLX ~18GB",
+        "features": ["32B 參數", "4-bit 量化 ~18GB", "128K 長上下文", "程式碼專精", "Apple Silicon 加速"],
+        "best_for": "程式碼生成、重構、code review、Claude Code / Copilot 平替",
+        "context_length": "128K tokens"
+    },
+    "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit": {
+        "name": "Qwen2.5-Coder 7B (MLX 4-bit)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "32B 兄弟的小型版，4-bit ~5GB，啟動快、適合 IDE 自動補全與低延遲程式問答",
+        "features": ["7B 參數", "4-bit 量化 ~5GB", "32K 上下文", "極低延遲", "程式碼專精"],
+        "best_for": "IDE inline completion、快速程式碼問答、IDE 外掛",
+        "context_length": "32K tokens"
     },
     "gpt-oss:120b": {
         "name": "GPT-OSS 120B",

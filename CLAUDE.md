@@ -5,16 +5,24 @@
 
 ## 專案是什麼
 - FastAPI gateway（`ollama_api_server.py`）統一管理多個 LLM backend：
-  - llama.cpp servers（gpt-oss:120b 21180、gemma4:31b 21181、Qwen3-Embedding-8B 21182、bge-reranker 21183）
-  - Ollama（11434 — 含 gemma3:27b、gemma4:latest、nemotron3:33b、**qwen3.6:35b-a3b-mlx-bf16**）
-  - MLX server（21191 — `mlx-community/Qwen2.5-1.5B-Instruct-4bit`）
+  - llama.cpp servers（gemma4:31b 21181、Qwen3-Embedding-8B 21182、bge-reranker 21183）— **21180 (gpt-oss llama.cpp) 已停用，由 MLX 21192 接管**
+  - Ollama（11434 — 含 gemma3:27b、gemma4:latest、nemotron3:33b）
+  - MLX servers：
+    - 21191 — `mlx-community/Qwen2.5-1.5B-Instruct-4bit`
+    - 21192 — `mlx-community/gpt-oss-120b-MXFP4-Q4`（同時 alias `gpt-oss:120b`）
+    - 21193 — `mlx-community/gemma-3-27b-it-qat-4bit`
+    - 21194 — `mlx-community/Qwen2.5-VL-7B-Instruct-4bit`
+    - 21195 — `mlx-community/Qwen3.6-35B-A3B-4bit`（MoE，agent 預設）
+    - 21196 — `mlx-community/Qwen2.5-Coder-32B-Instruct-4bit`（code 主力）
+    - 21197 — `mlx-community/Qwen2.5-Coder-7B-Instruct-4bit`（code 快速版）
   - DeepSeek 雲端（v4-flash / v4-pro）
 - 對外提供 OpenAI 相容 API（`/v1/models`、`/v1/chat/completions`、`/v1/embeddings`、`/v1/audio/*`）+ 簡易 OCR + 管理 UI
 - 部署：localhost:8777 → Cloudflare Tunnel → `ollama_pjapi.theaken.com`
 
 ## 服務狀態
 - 全部 services 走 launchd（`~/Library/LaunchAgents/com.zhaoi.*.plist`）
-- 確認狀態：`launchctl list | grep -E "ollama-api|llama-server|mlx-qwen"`
+- 確認狀態：`launchctl list | grep -E "ollama-api|llama-server|mlx-"`
+- 已停用的 plist 移到 `~/Library/LaunchAgents/disabled/`（gpt-oss 120b 重複實例、`/Volumes/Data-1` 沒掛載的 glm-5/qwen3.5-397b/deepseek-r1-671b），要重啟時搬回原位 `launchctl load`
 - ollama 版本：0.23.1（Homebrew，nemotron3 需 ≥ 0.22）
 
 ## 前端架構（重要）

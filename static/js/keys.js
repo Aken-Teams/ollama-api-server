@@ -227,7 +227,9 @@ const MODEL_META = {
     'mlx-community/gpt-oss-120b-MXFP4-Q4':        { label: 'gpt-oss-120b MLX',  note: '120B（MLX），最強，速度比 llama.cpp 快 1.3–2x',  vision: false, thinking: true  },
     'mlx-community/gemma-3-27b-it-qat-4bit':      { label: 'gemma-3-27b MLX',   note: '27B（MLX, QAT 4-bit），長 context，視覺',         vision: false, thinking: true  },
     'mlx-community/Qwen2.5-VL-7B-Instruct-4bit':  { label: 'Qwen2.5-VL-7B',    note: '7B（MLX），視覺模型，本地 OCR/RAG',              vision: true,  thinking: false },
-    'mlx-community/Qwen3.6-35B-A3B-bf16':         { label: 'Qwen3.6-35B-A3B',   note: '35B/3B 激活（MLX BF16），thinking 模型，256K',   vision: false, thinking: true  },
+    'mlx-community/Qwen3.6-35B-A3B-4bit':         { label: 'Qwen3.6-35B-A3B',   note: '35B/3B 激活（MLX 4-bit ~20GB），thinking，256K',  vision: false, thinking: true  },
+    'mlx-community/Qwen2.5-Coder-32B-Instruct-4bit': { label: 'Qwen2.5-Coder-32B', note: '32B（MLX 4-bit ~18GB），程式碼專精，Claude Code 平替', vision: false, thinking: false },
+    'mlx-community/Qwen2.5-Coder-7B-Instruct-4bit':  { label: 'Qwen2.5-Coder-7B',  note: '7B（MLX 4-bit ~5GB），極快，IDE 補全/問答',           vision: false, thinking: false },
     // DeepSeek cloud
     'deepseek-v4-flash':                          { label: 'deepseek-v4-flash', note: 'DeepSeek V4 Flash 雲端，低延遲高吞吐',           vision: false, thinking: true  },
     'deepseek-v4-pro':                            { label: 'deepseek-v4-pro',   note: 'DeepSeek V4 Pro 雲端，深度推理',                 vision: false, thinking: true  },

@@ -51,7 +51,9 @@ MODELS = [
     "mlx-community/gpt-oss-120b-MXFP4-Q4",
     "mlx-community/gemma-3-27b-it-qat-4bit",
     "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
-    "mlx-community/Qwen3.6-35B-A3B-bf16",
+    "mlx-community/Qwen3.6-35B-A3B-4bit",
+    "mlx-community/Qwen2.5-Coder-32B-Instruct-4bit",
+    "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
     # DeepSeek cloud
     "deepseek-v4-flash",
     "deepseek-v4-pro",
