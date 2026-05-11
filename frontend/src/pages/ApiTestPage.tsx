@@ -267,6 +267,7 @@ export default function ApiTestPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-sm font-medium text-gray-800">{model.id}</span>
+                            <span className="text-xs text-gray-500">— {desc}</span>
                             <span className={`px-2 py-0.5 rounded text-xs ${PROVIDER_COLORS[provider] ?? 'bg-gray-100 text-gray-600'}`}>
                               {provider}
                             </span>
@@ -294,7 +295,6 @@ export default function ApiTestPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">{desc}</p>
 
                           {/* Test result */}
                           {result && (
