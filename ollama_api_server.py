@@ -75,12 +75,16 @@ API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
 # DeepSeek API Configuration
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
-DEEPSEEK_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
+DEEPSEEK_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro"]
 ENV_FILE_PATH = os.environ.get("ENV_FILE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 # Vision Model Configuration (Local Ollama)
+# Empty: there is currently no Ollama-side VL model pulled. Kept as a list so
+# `forward_to_qwen_vl` + the `is_qwen_vl` branch stay dormant but reachable
+# if we add an Ollama vision model back later. MLX vision lives at port 21194
+# under MODEL_ENDPOINT_MAP instead.
 QWEN_VL_BASE_URL = os.environ.get("QWEN_VL_BASE_URL", f"http://{_OLLAMA_HOST}:11434/v1")
-QWEN_VL_MODELS = ["qwen2.5vl:7b"]
+QWEN_VL_MODELS: list[str] = []
 
 # Remote Qwen3-VL OCR Service (GPU)
 QWEN_VL_OCR_URL = os.environ.get("QWEN_VL_OCR_URL", "http://192.168.0.191:8002")
@@ -291,24 +295,6 @@ MODEL_INFO = {
         "features": ["雲端服務", "深度推理", "長文本生成", "程式碼/數學專精"],
         "best_for": "複雜推理、程式碼生成、論文寫作、Agent 任務",
         "context_length": "128K tokens"
-    },
-    "deepseek-chat": {
-        "name": "DeepSeek Chat",
-        "type": "cloud",
-        "provider": "DeepSeek",
-        "description": "DeepSeek 對話模型，高效能雲端 AI 服務",
-        "features": ["雲端服務", "快速回應", "高效能", "穩定可靠"],
-        "best_for": "一般對話、文本生成、翻譯、摘要",
-        "context_length": "64K tokens"
-    },
-    "deepseek-reasoner": {
-        "name": "DeepSeek Reasoner",
-        "type": "cloud",
-        "provider": "DeepSeek",
-        "description": "DeepSeek 推理模型，專注於邏輯推理和數學",
-        "features": ["深度推理", "數學專精", "邏輯分析", "步驟解說"],
-        "best_for": "數學題解、邏輯推理、程式除錯、科學計算",
-        "context_length": "64K tokens"
     },
 }
 
