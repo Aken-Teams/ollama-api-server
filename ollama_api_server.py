@@ -1013,13 +1013,19 @@ def get_available_endpoint(model: str = None):
 def reject_unknown_chat_model(model: Optional[str]):
     """Raise 400 if `model` is not in the chat-capable model set.
     Used at endpoint boundaries so the user sees a clear error instead of a
-    503 (or worse, a successful response from llama.cpp ignoring the model)."""
+    503 (or worse, a successful response from llama.cpp ignoring the model).
+
+    NOTE: error message is intentionally generic — we used to include
+    sorted(KNOWN_CHAT_MODELS) for debugging convenience, but that lets any
+    authenticated key enumerate every model the gateway hosts (information
+    disclosure across tenants). Admins debug via gateway log + /v1/models."""
     if not model:
         raise HTTPException(status_code=400, detail="必須指定 model 欄位")
     if model not in KNOWN_CHAT_MODELS:
+        logger.warning(f"reject_unknown_chat_model: '{model}' not in KNOWN_CHAT_MODELS")
         raise HTTPException(
             status_code=400,
-            detail=f"未知的模型 '{model}'。可用模型：{sorted(KNOWN_CHAT_MODELS)}"
+            detail=f"未知的模型 '{model}'。請使用此 API Key 對應的模型 ID，或洽管理員確認可用模型。"
         )
 
 async def forward_request(endpoint: str, path: str, method: str, headers: dict, json_data: dict = None, stream: bool = False):
@@ -1986,9 +1992,10 @@ async def embeddings(request: Request, user: Dict = Depends(get_current_user)):
     if not model:
         raise HTTPException(status_code=400, detail="必須指定 model 欄位")
     if model not in MODEL_ENDPOINT_MAP:
+        logger.warning(f"/v1/embeddings: unknown model '{model}'")
         raise HTTPException(
             status_code=400,
-            detail=f"未知的模型 '{model}'。可用模型：{sorted(MODEL_ENDPOINT_MAP.keys())}"
+            detail=f"未知的 embedding 模型 '{model}'。請洽管理員確認可用模型。"
         )
 
     # Route to the correct endpoint based on model
