@@ -255,8 +255,8 @@ function buildOnboardCardText(apiKey, username, description, models) {
     // 建構限制列表
     const constraints = [];
     constraints.push(isSingleModel
-        ? `這把 API Key 被「鎖死」只能呼叫 \`${primary}\`；用其他 model ID 一律回 403「沒有使用模型權限」。`
-        : `這把 API Key 只能呼叫上述列表內的 model ID；其他一律回 403。`);
+        ? `這把 API Key 只能呼叫 \`${primary}\`。其他 model ID 一律會被 gateway 拒絕：**系統不認識的（例如 \`gpt-4o\`、typo）回 400**；**系統認識但這把 Key 沒權限的回 403**。所以絕對不要嘗試列表以外的模型，也不要把 400 錯誤訊息當作探測管道。`
+        : `這把 API Key 只能呼叫上述列表內的 model ID。其他一律被拒絕（不認識 → 400；無權限 → 403）。`);
     constraints.push(`不可以使用 \`model: "auto"\` 或任何虛擬路由；系統已停用自動路由，務必明確指定一個真實 model ID。`);
     if (anyThinking) {
         constraints.push(`部分模型是 **thinking 模型**（標記 \`[thinking]\`）— 回應裡 \`choices[0].message\` 有兩個欄位：
@@ -267,69 +267,87 @@ function buildOnboardCardText(apiKey, username, description, models) {
     if (anyVision) {
         constraints.push(`vision 模型（標記 \`[vision]\`）接受 OpenAI 標準的 multipart content：\`[{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}, {"type":"text","text":"..."}]\`。`);
     }
-    constraints.push(`stream 模式回 SSE，格式同 OpenAI（\`data: {...}\\n\\n\` ... 最後 \`data: [DONE]\`）；thinking 模型的 reasoning 不會出現在 delta，只在 final message。`);
+    if (anyThinking) {
+        constraints.push(`**stream 模式對 thinking 模型有已知 bug**：\`delta.content\` 會夾帶原始 harmony tokens（\`<|channel|>analysis<|message|>...<|end|>\` 是 reasoning、\`<|channel|>final<|message|>...\` 才是真正答覆），client 必須自己用 \`<|channel|>final<|message|>\` 切。**建議 thinking 模型一律用 non-stream（\`stream: false\`）**，gateway 會幫你切好放到 \`message.content\`。`);
+    } else {
+        constraints.push(`stream 模式回 SSE，格式同 OpenAI（\`data: {...}\\n\\n\` ... 最後 \`data: [DONE]\`）。`);
+    }
+    constraints.push(`部分模型（特別是 \`gpt-oss\` 系列、deepseek 雲端）會自稱「我是 ChatGPT，由 OpenAI 訓練」— 那是訓練資料的副作用，不是真實後端。如果你要對外露出回應，**請在 \`messages\` 開頭塞一個 system prompt 覆寫身份**（見下方範例）。`);
     const constraintsBlock = constraints.map((c, i) => `${i + 1}. ${c}`).join('\n');
 
-    // Python example tuned per primary model
+    // Python example tuned per primary model — pure stdlib urllib (no install required)
     const maxTokens = primaryMeta.thinking ? 1500 : 512;
+    const thinkingFallback = primaryMeta.thinking
+        ? `# thinking 模型：content 可能空字串，記得 fallback 看 reasoning
+text = msg.get("content") or msg.get("reasoning") or ""`
+        : `text = msg.get("content", "")`;
+    const SYSTEM_PROMPT = '你是本地端 LLM 助理。請以繁體中文回答；不要自稱 ChatGPT 或 OpenAI。';
     let pyExample;
     if (primaryMeta.vision) {
-        pyExample = `import base64
-from openai import OpenAI
-
-client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
+        pyExample = `import base64, json, urllib.request
 
 with open("image.jpg", "rb") as f:
     img_b64 = base64.b64encode(f.read()).decode()
 
-resp = client.chat.completions.create(
-    model=MODEL,
-    messages=[{"role": "user", "content": [
-        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-        {"type": "text", "text": "描述這張圖片"},
-    ]}],
-    max_tokens=${maxTokens},
+body = json.dumps({
+    "model": MODEL,
+    "messages": [
+        {"role": "system", "content": "${SYSTEM_PROMPT}"},
+        {"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+            {"type": "text", "text": "描述這張圖片"},
+        ]},
+    ],
+    "max_tokens": ${maxTokens},
+}).encode("utf-8")
+
+req = urllib.request.Request(
+    f"{BASE_URL}/chat/completions",
+    method="POST",
+    headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+    data=body,
 )
-print(resp.choices[0].message.content)`;
+with urllib.request.urlopen(req, timeout=120) as r:
+    data = json.loads(r.read())
+msg = data["choices"][0]["message"]
+${thinkingFallback}
+print(text)`;
     } else {
-        const thinkingNote = primaryMeta.thinking
-            ? `
-# thinking 模型：content 可能空字串，記得 fallback 看 reasoning
-text = resp.choices[0].message.content or getattr(resp.choices[0].message, "reasoning", "")`
-            : `
-text = resp.choices[0].message.content`;
-        pyExample = `from openai import OpenAI
+        pyExample = `import json, urllib.request
 
-client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
+body = json.dumps({
+    "model": MODEL,
+    "messages": [
+        {"role": "system", "content": "${SYSTEM_PROMPT}"},
+        {"role": "user", "content": "你好"},
+    ],
+    "max_tokens": ${maxTokens},
+}).encode("utf-8")
 
-resp = client.chat.completions.create(
-    model=MODEL,
-    messages=[{"role": "user", "content": "你好"}],
-    max_tokens=${maxTokens},
-)${thinkingNote}
+req = urllib.request.Request(
+    f"{BASE_URL}/chat/completions",
+    method="POST",
+    headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+    data=body,
+)
+with urllib.request.urlopen(req, timeout=120) as r:
+    data = json.loads(r.read())
+msg = data["choices"][0]["message"]
+${thinkingFallback}
 print(text)`;
     }
-
-    const curlExample = `curl -s ${baseUrl}/v1/chat/completions \\
-  -H "Authorization: Bearer $API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "${primary}",
-    "messages": [{"role": "user", "content": "你好"}],
-    "max_tokens": ${maxTokens}
-  }'`;
 
     return `# 私有 LLM API 存取資訊（OpenAI 相容）
 
 請用以下資訊呼叫 chat completions API 完成接下來的任務。
-完整相容 OpenAI Python / Node SDK — 把 base_url 改成下面那個 URL 即可。
+此 endpoint 完整相容 OpenAI \`/v1/chat/completions\` 規格。
 
 ## 連線設定
 
-\`\`\`bash
-BASE_URL="${baseUrl}/v1"
-API_KEY="${apiKey}"
-MODEL="${primary}"
+\`\`\`python
+BASE_URL = "${baseUrl}/v1"
+API_KEY  = "${apiKey}"
+MODEL    = "${primary}"
 \`\`\`
 
 ## 可用模型${isSingleModel ? '（這把 Key 唯一能用的 model）' : '（這把 Key 允許的所有 model）'}
@@ -340,22 +358,15 @@ ${modelLines}
 
 ${constraintsBlock}
 
-## Python 範例
+## Python 範例（純標準庫 urllib，**不必裝任何套件**）
 
 \`\`\`python
-# pip install openai
 ${pyExample}
 \`\`\`
 
-## curl 範例
-
-\`\`\`bash
-${curlExample}
-\`\`\`
-
-## 你的任務
-
-（請把實際任務寫在這之後）`;
+> 若已裝 \`openai\` SDK 也可用：\`OpenAI(base_url=BASE_URL, api_key=API_KEY).chat.completions.create(model=MODEL, messages=[...], max_tokens=${maxTokens})\`，response 是同樣的結構。
+> 不建議用 \`curl\` 直接打：在 PowerShell / cmd.exe 下，\`curl\` 是 \`Invoke-WebRequest\` 別名，會把 JSON 內的雙引號吃掉。請優先用 Python。
+`;
 }
 
 // Edit API Key (description / is_admin / is_active)
