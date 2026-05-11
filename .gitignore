@@ -11,6 +11,9 @@ __pycache__/
 .env
 .env.local
 
+# Per-model API keys (plaintext — never commit)
+per_model_keys.txt
+
 # IDE
 .vscode/
 .idea/

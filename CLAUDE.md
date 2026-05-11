@@ -6,7 +6,7 @@
 ## 專案是什麼
 - FastAPI gateway（`ollama_api_server.py`）統一管理多個 LLM backend：
   - llama.cpp servers（gpt-oss:120b 21180、gemma4:31b 21181、Qwen3-Embedding-8B 21182、bge-reranker 21183）
-  - Ollama（11434 — 含 gemma3:27b、gemma4:latest、nemotron3:33b）
+  - Ollama（11434 — 含 gemma3:27b、gemma4:latest、nemotron3:33b、**qwen3.6:35b-a3b-mlx-bf16**）
   - MLX server（21191 — `mlx-community/Qwen2.5-1.5B-Instruct-4bit`）
   - DeepSeek 雲端（v4-flash / v4-pro）
 - 對外提供 OpenAI 相容 API（`/v1/models`、`/v1/chat/completions`、`/v1/embeddings`、`/v1/audio/*`）+ 簡易 OCR + 管理 UI
@@ -82,8 +82,14 @@ __store();   // console.table 印當前 state
 3. **資訊**：`MODEL_INFO[id] = { name, type, provider, description, features, best_for, context_length }`
 4. reload gateway：`launchctl kickstart -k gui/$(id -u)/com.zhaoi.ollama-api-gateway`
 
+## 每模型一把 API key（2026-05-12 起）
+- 已**取消**舊的 agent 路由（`model="auto"` / `"agent"` 改回 400）
+- 12 個 chat 模型各有專屬 API key（DB username 為 `model-<slug>`），每把 key `allowed_models` 鎖死該模型，`allowed_features=["chat"]`
+- 一次性產生腳本：`python3 create_per_model_keys.py`（idempotent；`--rotate` 會換新 hash），明文 key 寫到 `per_model_keys.txt`
+
 ## 常見坑
 - llama-server `/v1/models` 回 `{models, data}` 兩種 key — gateway 用 `data`（OpenAI 標準）
 - mlx_lm.server 會 enumerate HF cache 裡的所有模型，`/v1/models` aggregation 不能直接信，所以 gateway 對 MLX 用 MODEL_ENDPOINT_MAP 顯式註冊
 - gemma3 / gemma4 / gpt-oss / nemotron3 / deepseek-v4 都是 reasoning 模型 → 回應分 `content` + `reasoning`（或 `reasoning_content`）兩欄；`max_tokens` 太小會卡在 thinking 階段
+- qwen3.6:35b-a3b-mlx-bf16 預設開 thinking 模式，首 token 延遲較長（思考完才輸出）
 - `/Volumes/Data-1` 沒掛載時，`glm-5 / qwen3.5-397b / deepseek-r1-671b` LaunchAgent 會反覆 crash，這是預期

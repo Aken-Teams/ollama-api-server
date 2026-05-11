@@ -52,9 +52,14 @@ OLLAMA_ENDPOINTS = [
     f"http://{_LLAMA_HOST}:21183/v1",
 ]
 
+# Alias model IDs before forwarding (when the endpoint expects a different model name)
+MODEL_ID_ALIAS = {
+    "gpt-oss:120b": "mlx-community/gpt-oss-120b-MXFP4-Q4",
+}
+
 # Model to endpoint mapping - each model routes to its specific llama.cpp / MLX server
 MODEL_ENDPOINT_MAP = {
-    "gpt-oss:120b": f"http://{_LLAMA_HOST}:21180/v1",
+    "gpt-oss:120b": f"http://{_LLAMA_HOST}:21192/v1",  # redirected to MLX
     "gemma4:31b": f"http://{_LLAMA_HOST}:21181/v1",
     "Qwen3-Embedding-8B": f"http://{_LLAMA_HOST}:21182/v1",
     "bge-reranker-v2-m3": f"http://{_LLAMA_HOST}:21183/v1",
@@ -62,6 +67,7 @@ MODEL_ENDPOINT_MAP = {
     "mlx-community/gpt-oss-120b-MXFP4-Q4": f"http://{_LLAMA_HOST}:21192/v1",
     "mlx-community/gemma-3-27b-it-qat-4bit": f"http://{_LLAMA_HOST}:21193/v1",
     "mlx-community/Qwen2.5-VL-7B-Instruct-4bit": f"http://{_LLAMA_HOST}:21194/v1",
+    "mlx-community/Qwen3.6-35B-A3B-bf16": f"http://{_LLAMA_HOST}:21195/v1",
 }
 
 API_KEY = "paVrIT+XU1NhwCAOb0X4aYi75QKogK5YNMGvQF1dCyo="
@@ -86,35 +92,11 @@ OLLAMA_LOCAL_MODELS = ["gemma3:27b", "gemma4:latest", "nemotron3:33b"]
 # Whitelist of models accepted by /v1/chat/completions.
 # llama.cpp ignores the `model` field (it serves whatever is loaded), so without
 # this guard any garbage string would silently route to a random llama.cpp endpoint.
-# "auto" / "agent" are virtual aliases for the LLM router (see route_for_agent).
-AGENT_VIRTUAL_MODELS = {"auto", "agent"}
 KNOWN_CHAT_MODELS = (
     set(MODEL_ENDPOINT_MAP.keys())
     | set(DEEPSEEK_MODELS)
     | set(QWEN_VL_MODELS)
     | set(OLLAMA_LOCAL_MODELS)
-    | AGENT_VIRTUAL_MODELS
-)
-
-# === Agent routing (model="auto") ===
-# A small fast model classifies the request, then we forward to the chosen target.
-ROUTER_MODEL = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
-ROUTING_TARGETS = {
-    "code":      "mlx-community/gpt-oss-120b-MXFP4-Q4",
-    "reasoning": "mlx-community/gpt-oss-120b-MXFP4-Q4",
-    "vision":    "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
-    "quick":     "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
-    "general":   "mlx-community/gemma-3-27b-it-qat-4bit",
-}
-ROUTER_CLASSIFIER_PROMPT = (
-    "Classify the user request into ONE category. Reply with ONLY the category word.\n\n"
-    "Categories:\n"
-    "- code: programming, debugging, code review, software engineering\n"
-    "- reasoning: math, logic, step-by-step analysis, complex problem solving\n"
-    "- quick: short greeting or simple factual lookup (under one sentence)\n"
-    "- general: writing, knowledge, summarization, casual chat, anything else\n\n"
-    "User: {prompt}\n\n"
-    "Category:"
 )
 
 # Speech-to-Text API Configuration
@@ -181,11 +163,21 @@ OCR_MODELS = {
 HIDDEN_MODELS = [
     "Qwen3-Embedding-8B",
     "bge-reranker-v2-m3",
+    "qwen3.6:35b-a3b-mlx-bf16",  # replaced by mlx-community/Qwen3.6-35B-A3B-bf16
 ]
 
 # Model descriptions and features
 MODEL_INFO = {
     # 地端模型 (Local Models)
+    "mlx-community/Qwen3.6-35B-A3B-bf16": {
+        "name": "Qwen 3.6 35B-A3B (MLX BF16)",
+        "type": "local",
+        "provider": "MLX",
+        "description": "Qwen3.6 MoE 模型：35B 總參數、僅 3B 激活，BF16 全精度 MLX 版本，推理速度快、品質接近全尺寸（agent 預設 reasoning/general 目標）",
+        "features": ["35B 總參數 / 3B 激活", "BF16 全精度", "256K 長上下文", "MoE 架構（快速推理）", "中英文均強"],
+        "best_for": "中文欄位擷取、文件理解、複雜推理、一般對話（agent 預設路由）",
+        "context_length": "256K tokens"
+    },
     "gpt-oss:120b": {
         "name": "GPT-OSS 120B",
         "type": "local",
@@ -200,25 +192,25 @@ MODEL_INFO = {
         "description": "Google Gemma 4 指令微調版，支援思考鏈與多模態（mmproj）",
         "features": ["31B 參數", "Reasoning 模式", "多模態 mmproj", "Q4_K_M 量化"],
         "best_for": "推理問答、複雜指令、視覺輔助對話",
-        "context_length": "8K tokens"
+        "context_length": "128K tokens"
     },
     "gemma4:latest": {
-        "name": "Gemma 4 (Ollama 預設)",
+        "name": "Gemma 4 8B (Ollama)",
         "type": "local",
         "provider": "Ollama",
-        "description": "Ollama 內建的 Gemma 4 預設量化版，啟動快、資源消耗低",
-        "features": ["輕量量化 ~9.6GB", "Ollama 即用", "通用對話", "多語言"],
-        "best_for": "日常對話、快速問答、本機輕量場景",
-        "context_length": "8K tokens"
+        "description": "Google Gemma 4 8B Q4_K_M，128K 長上下文，128 tok/s，OCR AI 整理主力",
+        "features": ["8B 參數", "Q4_K_M ~6GB", "128K 長上下文", "多語言", "多模態"],
+        "best_for": "OCR AI 整理、日常對話、快速問答",
+        "context_length": "128K tokens"
     },
     "gemma3:27b": {
         "name": "Gemma 3 27B (視覺)",
         "type": "local",
         "provider": "Ollama",
-        "description": "Google Gemma 3 27B 多模態模型，支援圖文理解、長上下文",
-        "features": ["27B 參數", "視覺能力", "Q4_K_M", "131K 長上下文"],
+        "description": "Google Gemma 3 27B 多模態模型，支援圖文理解，128K 長上下文",
+        "features": ["27B 參數", "視覺能力", "Q4_K_M", "128K 長上下文"],
         "best_for": "圖片解讀、長文檔分析、多模態應用",
-        "context_length": "131K tokens"
+        "context_length": "128K tokens"
     },
     "nemotron3:33b": {
         "name": "Nemotron 3 33B Omni (視覺)",
@@ -263,7 +255,7 @@ MODEL_INFO = {
         "description": "Qwen2.5-VL 視覺語言模型 MLX 版本，支援圖片理解與 OCR，啟動快、低延遲",
         "features": ["7B 參數", "視覺＋文字", "4-bit 量化 ~5GB", "Apple Silicon 原生加速"],
         "best_for": "圖片問答、文件理解、本地 OCR、視覺 RAG",
-        "context_length": "32K tokens"
+        "context_length": "128K tokens"
     },
     "Qwen3-Embedding-8B": {
         "name": "Qwen3 Embedding 8B",
@@ -669,13 +661,24 @@ async def migrate_conversations_table():
                 result = await cursor.fetchone()
 
                 if not result:
-                    # Add user_id and username columns
                     await cursor.execute("""
                         ALTER TABLE ollama_conversations
                         ADD COLUMN user_id INT DEFAULT NULL,
                         ADD COLUMN username VARCHAR(100) DEFAULT NULL
                     """)
                     logger.info("Added user_id and username columns to ollama_conversations table")
+
+                # Add ip_address column if missing
+                await cursor.execute("""
+                    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'ollama_conversations' AND COLUMN_NAME = 'ip_address'
+                """, (MYSQL_CONFIG["db"],))
+                if not await cursor.fetchone():
+                    await cursor.execute("""
+                        ALTER TABLE ollama_conversations
+                        ADD COLUMN ip_address VARCHAR(64) DEFAULT NULL
+                    """)
+                    logger.info("Added ip_address column to ollama_conversations table")
     except Exception as e:
         logger.error(f"Failed to migrate conversations table: {e}")
 
@@ -761,6 +764,8 @@ async def log_chat_usage(raw_request: Request, user: Dict, model: str,
                          error_message: Optional[str] = None):
     """Write a usage_logs row for a streaming chat response.
     Called from inside the streaming generator after it finishes."""
+    if raw_request.headers.get("X-No-Log") == "1":
+        return
     elapsed_ms = int((time.time() - start_time) * 1000)
     await _write_usage_log(
         username=(user or {}).get("username"),
@@ -798,7 +803,8 @@ class ModelListResponse(BaseModel):
 async def record_conversation_to_db(model: str, messages: List[Dict], response_content: str,
                                     prompt_tokens: int = 0, completion_tokens: int = 0,
                                     response_time_ms: float = 0, success: bool = True,
-                                    user_id: int = None, username: str = None):
+                                    user_id: int = None, username: str = None,
+                                    ip_address: str = None):
     """Record a conversation to MySQL database"""
     if not db_pool:
         logger.warning("Database pool not initialized, skipping record")
@@ -808,18 +814,16 @@ async def record_conversation_to_db(model: str, messages: List[Dict], response_c
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 now = datetime.now()
-                today = now.date()
                 total_tokens = prompt_tokens + completion_tokens
 
-                # Insert conversation record
                 await cursor.execute(
                     """INSERT INTO ollama_conversations
                        (timestamp, model, messages, response, prompt_tokens, completion_tokens,
-                        total_tokens, response_time_ms, success, user_id, username)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        total_tokens, response_time_ms, success, user_id, username, ip_address)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (now, model, json.dumps(messages, ensure_ascii=False), response_content,
                      prompt_tokens, completion_tokens, total_tokens,
-                     round(response_time_ms, 2), success, user_id, username)
+                     round(response_time_ms, 2), success, user_id, username, ip_address)
                 )
 
     except Exception as e:
@@ -829,14 +833,15 @@ async def record_conversation_to_db(model: str, messages: List[Dict], response_c
 def record_conversation(model: str, messages: List[Dict], response_content: str,
                         prompt_tokens: int = 0, completion_tokens: int = 0,
                         response_time_ms: float = 0, success: bool = True,
-                        user_id: int = None, username: str = None):
+                        user_id: int = None, username: str = None,
+                        ip_address: str = None):
     """Record a conversation (async wrapper)"""
     # Schedule async database write
     asyncio.create_task(record_conversation_to_db(
         model, messages, response_content,
         prompt_tokens, completion_tokens,
         response_time_ms, success,
-        user_id, username
+        user_id, username, ip_address
     ))
 
 @asynccontextmanager
@@ -894,8 +899,12 @@ async def usage_log_middleware(request: Request, call_next):
         error_msg = str(e)
         raise
     finally:
+        # NOTE: never `return` from this finally block — it would swallow the
+        # value returned by the try-suite (the Response object) and starlette
+        # would receive None, raising `TypeError: 'NoneType' object is not callable`.
         path = request.url.path
-        if path.startswith("/v1/") or path.startswith("/api/"):
+        if (path.startswith("/v1/") or path.startswith("/api/")) \
+                and request.headers.get("X-No-Log") != "1":
             extra = request.state.usage_extra or {}
             # Streaming endpoints set _self_log=True and write their own row
             # after the generator finishes (so token totals are captured).
@@ -1065,15 +1074,48 @@ async def forward_request(endpoint: str, path: str, method: str, headers: dict, 
             endpoint_health[endpoint] = False
             raise HTTPException(status_code=500, detail=f"連接錯誤：{str(e)}")
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_FRONTEND_DIST = os.path.join(_BASE_DIR, "frontend", "dist")
+_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
+_STATIC_DIR = os.path.join(_BASE_DIR, "static")
+
+# Mount React build assets (/assets/index-xxx.js, /assets/index-xxx.css)
+_frontend_assets_dir = os.path.join(_FRONTEND_DIST, "assets")
+if os.path.isdir(_frontend_assets_dir):
+    app.mount("/assets", StaticFiles(directory=_frontend_assets_dir), name="frontend-assets")
+
+# Serve favicon.svg and icons.svg from frontend/dist root
+@app.get("/favicon.svg")
+async def favicon():
+    _p = os.path.join(_FRONTEND_DIST, "favicon.svg")
+    if os.path.isfile(_p):
+        from fastapi.responses import FileResponse
+        return FileResponse(_p, media_type="image/svg+xml")
+    raise HTTPException(status_code=404)
+
+@app.get("/icons.svg")
+async def icons_svg():
+    _p = os.path.join(_FRONTEND_DIST, "icons.svg")
+    if os.path.isfile(_p):
+        from fastapi.responses import FileResponse
+        return FileResponse(_p, media_type="image/svg+xml")
+    raise HTTPException(status_code=404)
+
+# Mount legacy static files for CSS/JS modules (kept for backward compat)
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
 @app.get("/")
 async def root():
-    """Root endpoint - serve the HTML interface"""
-    # Try modular version first, fallback to monolithic
+    """Root endpoint - serve the React SPA"""
+    if os.path.isfile(_FRONTEND_INDEX):
+        with open(_FRONTEND_INDEX, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    # Legacy fallback
     for path in ["static/index.html", "index.html"]:
         try:
             with open(path, "r", encoding="utf-8") as f:
-                html_content = f.read()
-            return HTMLResponse(content=html_content)
+                return HTMLResponse(content=f.read())
         except FileNotFoundError:
             continue
     return {
@@ -1081,12 +1123,6 @@ async def root():
         "endpoints": len(OLLAMA_ENDPOINTS),
         "healthy_endpoints": sum(1 for v in endpoint_health.values() if v)
     }
-
-# Mount static files for CSS/JS modules
-import os
-_static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-if os.path.isdir(_static_dir):
-    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 @app.get("/v1/models")
 async def list_models(user: Dict = Depends(get_current_user)):
@@ -1288,85 +1324,6 @@ def clean_deepseek_r1_response(content: str) -> str:
     return final
 
 
-def _agent_extract_last_user_text(messages) -> str:
-    """Pull the last user message as plain text (collapsing multi-part content)."""
-    for m in reversed(messages):
-        if m.get("role") != "user":
-            continue
-        content = m.get("content")
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            return " ".join(
-                item.get("text", "") for item in content
-                if isinstance(item, dict) and item.get("type") == "text"
-            )
-    return ""
-
-
-def _agent_has_vision_content(messages) -> bool:
-    for m in messages:
-        content = m.get("content")
-        if isinstance(content, list):
-            for item in content:
-                if isinstance(item, dict) and item.get("type") == "image_url":
-                    return True
-    return False
-
-
-async def route_for_agent(request_data: dict):
-    """Pick a target model for `model: "auto"`. Returns (model_id, route_label).
-
-    Heuristic shortcuts skip the LLM call when the choice is obvious:
-    - any image attachment -> vision
-    - very short prompts    -> quick
-
-    Otherwise the small Qwen2.5-1.5B classifier picks one of the labels and
-    we look it up in ROUTING_TARGETS. Anything weird falls back to general.
-    """
-    messages = request_data.get("messages", [])
-
-    if _agent_has_vision_content(messages):
-        return ROUTING_TARGETS["vision"], "vision"
-
-    last_text = _agent_extract_last_user_text(messages).strip()
-    if not last_text:
-        return ROUTING_TARGETS["quick"], "quick"
-    if len(last_text) < 12:
-        return ROUTING_TARGETS["quick"], "quick"
-
-    import re
-    classifier_prompt = ROUTER_CLASSIFIER_PROMPT.format(prompt=last_text[:1200])
-    endpoint = MODEL_ENDPOINT_MAP.get(ROUTER_MODEL)
-    if not endpoint:
-        logger.warning("Agent router model not registered, defaulting to general")
-        return ROUTING_TARGETS["general"], "general"
-
-    try:
-        timeout = httpx.Timeout(connect=5.0, read=15.0, write=5.0, pool=5.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(
-                f"{endpoint}/chat/completions",
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"},
-                json={
-                    "model": ROUTER_MODEL,
-                    "messages": [{"role": "user", "content": classifier_prompt}],
-                    "max_tokens": 8,
-                    "temperature": 0.0,
-                    "stream": False,
-                },
-            )
-            resp.raise_for_status()
-            raw = resp.json()["choices"][0]["message"]["content"]
-            label = re.split(r"[\s,.\n:]+", raw.strip().lower())[0].strip(".:")
-            if label in ROUTING_TARGETS:
-                return ROUTING_TARGETS[label], label
-    except Exception as e:
-        logger.warning(f"Agent router classifier failed, falling back to general: {e}")
-
-    return ROUTING_TARGETS["general"], "general"
-
-
 def convert_openai_to_ollama_format(request_data: dict) -> dict:
     """Convert OpenAI-style image format to Ollama format"""
     converted_data = request_data.copy()
@@ -1561,13 +1518,10 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
 
     reject_unknown_chat_model(request.model)
 
-    # === Agent routing: model="auto"/"agent" -> classify -> pick real model ===
-    agent_route_label = None
-    if request.model in AGENT_VIRTUAL_MODELS:
-        target_model, agent_route_label = await route_for_agent(request_data)
-        logger.info(f"agent route: {request.model} -> {agent_route_label} -> {target_model}")
-        request.model = target_model
-        request_data["model"] = target_model
+    # Rewrite model ID alias before forwarding to backend
+    if request.model in MODEL_ID_ALIAS:
+        aliased = MODEL_ID_ALIAS[request.model]
+        request_data["model"] = aliased
 
     # Permission check: allowed models (post-routing — check the real target)
     perms = user.get("permissions", {})
@@ -1640,7 +1594,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     await log_chat_usage(raw_request, user, request.model,
                                          prompt_tokens, completion_tokens,
@@ -1663,7 +1618,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     return content
         except Exception as e:
@@ -1706,7 +1662,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     await log_chat_usage(raw_request, user, request.model,
                                          prompt_tokens, completion_tokens,
@@ -1737,7 +1694,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
 
                     return JSONResponse(content=result)
@@ -1753,7 +1711,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                 response_time_ms=response_time_ms,
                 success=False,
                 user_id=user.get('id'),
-                username=user.get('username')
+                username=user.get('username'),
+                ip_address=raw_request.client.host if raw_request.client else None
             )
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -1793,7 +1752,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     await log_chat_usage(raw_request, user, request.model,
                                          prompt_tokens, completion_tokens,
@@ -1824,13 +1784,11 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
 
-                    if agent_route_label:
-                        result["agent_route"] = agent_route_label
-                    headers = {"x-agent-route": agent_route_label} if agent_route_label else None
-                    return JSONResponse(content=result, headers=headers)
+                    return JSONResponse(content=result)
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
             record_conversation(
@@ -1840,7 +1798,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                 response_time_ms=response_time_ms,
                 success=False,
                 user_id=user.get('id'),
-                username=user.get('username')
+                username=user.get('username'),
+                ip_address=raw_request.client.host if raw_request.client else None
             )
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -1896,7 +1855,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     await log_chat_usage(raw_request, user, request.model,
                                          prompt_tokens, completion_tokens,
@@ -1944,13 +1904,11 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=True,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
 
-                    if agent_route_label:
-                        result["agent_route"] = agent_route_label
-                    headers = {"x-agent-route": agent_route_label} if agent_route_label else None
-                    return JSONResponse(content=result, headers=headers)
+                    return JSONResponse(content=result)
         except HTTPException as e:
             if attempt < 2:  # Try another endpoint
                 logger.warning(f"Attempt {attempt + 1} failed for {endpoint}, trying another endpoint")
@@ -1965,7 +1923,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                         response_time_ms=response_time_ms,
                         success=False,
                         user_id=user.get('id'),
-                        username=user.get('username')
+                        username=user.get('username'),
+                        ip_address=raw_request.client.host if raw_request.client else None
                     )
                     raise
             else:
@@ -1978,7 +1937,8 @@ async def chat_completions(request: ChatCompletionRequest, raw_request: Request,
                     response_time_ms=response_time_ms,
                     success=False,
                     user_id=user.get('id'),
-                    username=user.get('username')
+                    username=user.get('username'),
+                    ip_address=raw_request.client.host if raw_request.client else None
                 )
                 raise
 
@@ -3692,23 +3652,28 @@ async def list_api_keys(admin: Dict = Depends(get_admin_user), include_all: bool
             async with conn.cursor(aiomysql.DictCursor) as cursor:
                 if include_all:
                     await cursor.execute(
-                        """SELECT id, username, api_key_prefix, is_admin, is_active,
-                                  created_at, last_used_at, request_count, description
-                           FROM api_keys ORDER BY request_count DESC, created_at DESC"""
+                        """SELECT k.id, k.username, k.api_key_prefix, k.is_admin, k.is_active,
+                                  k.created_at, k.last_used_at, k.request_count, k.description,
+                                  p.allowed_models
+                           FROM api_keys k
+                           LEFT JOIN user_permissions p ON k.username = p.username
+                           ORDER BY k.request_count DESC, k.created_at DESC"""
                     )
                 else:
                     # Filter out system accounts, test entries, and empty usernames
                     placeholders = ','.join(['%s'] * len(SYSTEM_USERNAMES))
                     await cursor.execute(
-                        f"""SELECT id, username, api_key_prefix, is_admin, is_active,
-                                  created_at, last_used_at, request_count, description
-                           FROM api_keys
-                           WHERE username NOT IN ({placeholders})
-                             AND username IS NOT NULL
-                             AND username != ''
-                             AND username NOT LIKE 'e2e-%%'
-                             AND username NOT LIKE 'c5-%%'
-                           ORDER BY request_count DESC, created_at DESC""",
+                        f"""SELECT k.id, k.username, k.api_key_prefix, k.is_admin, k.is_active,
+                                  k.created_at, k.last_used_at, k.request_count, k.description,
+                                  p.allowed_models
+                           FROM api_keys k
+                           LEFT JOIN user_permissions p ON k.username = p.username
+                           WHERE k.username NOT IN ({placeholders})
+                             AND k.username IS NOT NULL
+                             AND k.username != ''
+                             AND k.username NOT LIKE 'e2e-%%'
+                             AND k.username NOT LIKE 'c5-%%'
+                           ORDER BY k.request_count DESC, k.created_at DESC""",
                         tuple(SYSTEM_USERNAMES)
                     )
                 rows = await cursor.fetchall()
@@ -3724,7 +3689,8 @@ async def list_api_keys(admin: Dict = Depends(get_admin_user), include_all: bool
                         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
                         "last_used_at": row["last_used_at"].isoformat() if row["last_used_at"] else None,
                         "request_count": row["request_count"],
-                        "description": row["description"]
+                        "description": row["description"],
+                        "allowed_models": json.loads(row["allowed_models"]) if row.get("allowed_models") else None,
                     })
 
                 return {"keys": keys, "total": len(keys)}
@@ -3757,14 +3723,6 @@ async def create_api_key(request: CreateApiKeyRequest, admin: Dict = Depends(get
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
-                # Check if username already exists
-                await cursor.execute(
-                    "SELECT id FROM api_keys WHERE username = %s",
-                    (username,)
-                )
-                if await cursor.fetchone():
-                    raise HTTPException(status_code=400, detail=f"使用者 '{username}' 已存在")
-
                 # Generate new API key
                 api_key = generate_api_key()
                 api_key_hash = hash_api_key(api_key)
@@ -3979,7 +3937,8 @@ async def login(req: LoginRequest):
                     if not user["is_active"]:
                         raise HTTPException(status_code=403, detail="帳號已被停用")
 
-                    # Always generate a fresh API key on login (regenerate if exists)
+                    # Manage the dedicated login session key (description = 'Auto-created on login')
+                    # Only touch this key — never clobber other API keys the user may have.
                     user_api_key = MASTER_API_KEY  # fallback
                     try:
                         new_key = generate_api_key()
@@ -3987,18 +3946,16 @@ async def login(req: LoginRequest):
                         key_prefix = new_key[:8]
 
                         await cursor.execute(
-                            "SELECT id FROM api_keys WHERE username = %s",
+                            "SELECT id FROM api_keys WHERE username = %s AND description = 'Auto-created on login' LIMIT 1",
                             (user["username"],)
                         )
-                        existing_key = await cursor.fetchone()
-                        if existing_key:
-                            # Regenerate: update existing key and sync admin status
+                        login_key = await cursor.fetchone()
+                        if login_key:
                             await cursor.execute(
                                 "UPDATE api_keys SET api_key_hash = %s, api_key_prefix = %s, is_admin = %s, is_active = 1 WHERE id = %s",
-                                (key_hash, key_prefix, bool(user["is_admin"]), existing_key["id"])
+                                (key_hash, key_prefix, bool(user["is_admin"]), login_key["id"])
                             )
                         else:
-                            # Create new key
                             await cursor.execute(
                                 """INSERT INTO api_keys (username, api_key_hash, api_key_prefix, is_admin, description)
                                    VALUES (%s, %s, %s, %s, %s)""",
@@ -4038,6 +3995,55 @@ class UpdateUserRequest(BaseModel):
     password: Optional[str] = None
     is_admin: Optional[bool] = None
     is_active: Optional[bool] = None
+
+
+@app.get("/api/system/info")
+async def get_system_info(user: Dict = Depends(get_current_user)):
+    """Return host CPU / memory / disk / GPU stats."""
+    import psutil, time, subprocess
+
+    cpu = psutil.cpu_percent(interval=0.3)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    load = psutil.getloadavg()
+    boot = psutil.boot_time()
+    uptime_s = int(time.time() - boot)
+    uptime_h = uptime_s // 3600
+    uptime_m = (uptime_s % 3600) // 60
+
+    # Apple Silicon GPU via powermetrics — best-effort
+    gpu_pct = None
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", "powermetrics", "--samplers", "gpu_power", "-n", "1", "--show-process-gpu"],
+            capture_output=True, text=True, timeout=3
+        )
+        for line in result.stdout.splitlines():
+            if "GPU Active Residency" in line or "gpu active" in line.lower():
+                nums = [float(x.rstrip("%")) for x in line.split() if x.rstrip("%").replace(".", "").isdigit()]
+                if nums:
+                    gpu_pct = nums[0]
+                    break
+    except Exception:
+        pass
+
+    return {
+        "cpu_percent": round(cpu, 1),
+        "cpu_count": psutil.cpu_count(),
+        "memory": {
+            "total_gb": round(mem.total / 1e9, 1),
+            "used_gb": round(mem.used / 1e9, 1),
+            "percent": round(mem.percent, 1),
+        },
+        "disk": {
+            "total_gb": round(disk.total / 1e9, 1),
+            "used_gb": round(disk.used / 1e9, 1),
+            "percent": round(disk.percent, 1),
+        },
+        "load_avg": [round(x, 2) for x in load],
+        "uptime": f"{uptime_h}h {uptime_m}m",
+        "gpu_percent": gpu_pct,
+    }
 
 
 @app.get("/api/system-users")
@@ -4598,6 +4604,20 @@ async def prune_usage_logs(
     except Exception as e:
         logger.error(f"Failed to prune usage_logs manually: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# SPA catch-all: serve React index.html for any non-API, non-asset path
+# This must be registered LAST so it doesn't shadow any API routes.
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str):
+    """Serve React SPA index.html for all non-API routes (client-side routing)."""
+    # Don't intercept known API/v1 paths — FastAPI already matched them above
+    if full_path.startswith(("api/", "v1/", "static/", "assets/")):
+        raise HTTPException(status_code=404, detail="Not found")
+    if os.path.isfile(_FRONTEND_INDEX):
+        with open(_FRONTEND_INDEX, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    raise HTTPException(status_code=404, detail="Frontend not built")
 
 
 if __name__ == "__main__":

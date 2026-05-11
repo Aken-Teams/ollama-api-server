@@ -501,14 +501,8 @@ async function loadQuickTestModels() {
                                 <button class="model-card-btn test" id="btn-${index}" onclick="testSingleModel(${index})" title="實際發一個簡單問題給模型驗證可用">
                                     🧪 測試
                                 </button>
-                                <button class="model-card-btn" onclick="quickCreateKey('${model.id}')" style="background:#f0f9ff;color:#0284c7;border-color:#7dd3fc;" title="輸入用途 → 一鍵建立並複製 API Key">
-                                    🔑 申請 Key
-                                </button>
-                                <button class="model-card-btn" onclick="copyAiCodingPrompt('${model.id}')" style="background:#faf5ff;color:#7c3aed;border-color:#c4b5fd;" title="複製給 Claude Code / Cursor / Copilot 用的完整 prompt">
-                                    🤖 給 AI
-                                </button>
-                                <button class="model-card-btn" onclick="toggleSnippet(${index}, '${model.id}')" style="background:#f0fdf4;color:#16a34a;border-color:#86efac;" title="展開/收合 Python / cURL / Node 範例（檢視用）">
-                                    📋 範例
+                                <button class="model-card-btn" onclick="openModelCard('${model.id}')" style="background:#faf5ff;color:#7c3aed;border-color:#c4b5fd;" title="顯示此模型的說明卡">
+                                    說明卡
                                 </button>
                             </div>
                         </div>
@@ -539,6 +533,7 @@ async function loadQuickTestModels() {
         }).join('');
 
         refreshIcons();
+        applyTestBtnToggles();
 
     } catch (error) {
         console.error('載入模型失敗:', error);
@@ -577,13 +572,15 @@ async function testSingleModel(index) {
 
     try {
         // 發送簡單的測試問題
+        // max_tokens 設大一點：reasoning 模型（Qwen3.6 / gpt-oss / gemma4:31b / nemotron3）
+        // 必須先跑完 thinking 才會輸出 content，太小會卡在思考階段、content=""
         const apiResponse = await authFetch(`${API_URL}/v1/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: model.id,
                 messages: [{ role: 'user', content: '你好，請用一句話回應' }],
-                max_tokens: 50,
+                max_tokens: 1500,
                 stream: false
             })
         });
@@ -596,15 +593,24 @@ async function testSingleModel(index) {
 
         const data = await apiResponse.json();
         let content = '';
+        let usedReasoning = false;
 
         if (data.choices && data.choices[0] && data.choices[0].message) {
-            content = data.choices[0].message.content;
+            const msg = data.choices[0].message;
+            content = msg.content || '';
+            if (!content) {
+                const reasoning = msg.reasoning || msg.reasoning_content || '';
+                if (reasoning) {
+                    content = `（思考中，未輸出最終答覆）${reasoning}`;
+                    usedReasoning = true;
+                }
+            }
         }
 
         // 成功
         card.className = 'model-test-card success';
         status.className = 'model-card-status success';
-        status.textContent = `成功 (${(elapsed/1000).toFixed(1)}s)`;
+        status.textContent = `成功 (${(elapsed/1000).toFixed(1)}s)${usedReasoning ? ' · thinking' : ''}`;
         response.textContent = content.substring(0, 150) + (content.length > 150 ? '...' : '');
         response.className = 'model-card-response show';
 
@@ -1270,3 +1276,112 @@ document.addEventListener('DOMContentLoaded', () => {
         loadBenchModels();
     }
 });
+function toggleTestBtn(type, visible) {
+    const grid = document.getElementById('model-test-grid');
+    if (grid) grid.classList.toggle(`hide-btn-${type}`, !visible);
+    localStorage.setItem(`test_btn_${type}`, visible ? '1' : '0');
+}
+
+function applyTestBtnToggles() {
+    ['key', 'ai', 'snippet'].forEach(type => {
+        const stored = localStorage.getItem(`test_btn_${type}`);
+        const visible = stored !== '0';
+        const cb = document.getElementById(`toggle-btn-${type}`);
+        if (cb) cb.checked = visible;
+        toggleTestBtn(type, visible);
+    });
+}
+
+// 頁面載入時立刻套用（不等模型列表）
+document.addEventListener('DOMContentLoaded', applyTestBtnToggles);
+
+// ===== 說明卡 modal（API 測試頁）=====
+let _modelCardModel = null;
+let _userApiKeys = null;
+
+async function openModelCard(modelId) {
+    _modelCardModel = modelId;
+    document.getElementById('modelCardTitle').textContent = `說明卡 — ${modelId}`;
+    const modal = document.getElementById('modelCardModal');
+    modal.style.display = 'flex';
+
+    // Load all keys (cache)
+    if (!_userApiKeys) {
+        try {
+            const resp = await authFetch(`${API_URL}/api/keys`);
+            const data = await resp.json();
+            _userApiKeys = (data.keys || []).filter(k => k.is_active);
+        } catch (e) {
+            _userApiKeys = [];
+        }
+    }
+
+    // Populate user dropdown (deduplicated, current user first)
+    const me = (() => { try { return JSON.parse(localStorage.getItem('pj_user') || '{}').username; } catch(e) { return ''; } })();
+    const users = [...new Set(_userApiKeys.map(k => k.username))].sort((a, b) => {
+        if (a === me) return -1;
+        if (b === me) return 1;
+        return a.localeCompare(b);
+    });
+
+    const userSel = document.getElementById('modelCardUserSelect');
+    userSel.innerHTML = '<option value="">— 選擇使用者 —</option>';
+    users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u;
+        opt.textContent = u + (u === me ? '（我）' : '');
+        if (u === me) opt.selected = true;
+        userSel.appendChild(opt);
+    });
+
+    onModelCardUserChange();
+}
+
+function onModelCardUserChange() {
+    const username = document.getElementById('modelCardUserSelect').value;
+    const keySel = document.getElementById('modelCardKeySelect');
+    keySel.innerHTML = '';
+
+    if (!username) {
+        keySel.innerHTML = '<option value="">— 請先選使用者 —</option>';
+        document.getElementById('modelCardContent').textContent = '';
+        return;
+    }
+
+    const keys = (_userApiKeys || []).filter(k => k.username === username);
+    if (keys.length === 0) {
+        keySel.innerHTML = '<option value="">（此使用者無可用 Key）</option>';
+    } else {
+        keys.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k.api_key_prefix;
+            opt.textContent = `${k.description || '無描述'}（${k.api_key_prefix}…）`;
+            keySel.appendChild(opt);
+        });
+    }
+
+    refreshModelCard();
+}
+
+function refreshModelCard() {
+    const select = document.getElementById('modelCardKeySelect');
+    const prefix = select.value;
+    const key = prefix
+        ? `${prefix}… （完整 Key 請至管理員申請）`
+        : 'YOUR_API_KEY';
+    const card = buildOnboardCardText(key, '', '', [_modelCardModel]);
+    document.getElementById('modelCardContent').textContent = card;
+    document.getElementById('modelCardCopyBtn').textContent = '複製說明卡';
+}
+
+function closeModelCard() {
+    document.getElementById('modelCardModal').style.display = 'none';
+}
+
+async function copyModelCard() {
+    const text = document.getElementById('modelCardContent').textContent;
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('modelCardCopyBtn');
+    btn.textContent = '已複製 ✓';
+    setTimeout(() => btn.textContent = '複製說明卡', 2000);
+}

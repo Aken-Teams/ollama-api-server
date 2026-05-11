@@ -70,7 +70,6 @@
     <ul class="sidebar-nav">
         <li><a class="active" data-tab="dashboard" onclick="switchTab('dashboard', this)"><span class="nav-icon">&#9632;</span><span>總覽</span></a></li>
         <li><a data-tab="tools" onclick="switchTab('tools', this)"><span class="nav-icon">&#9881;</span><span>AI 模型</span></a></li>
-        <li id="agent-nav" style="display: none;"><a data-tab="agent" onclick="switchTab('agent', this)"><span class="nav-icon">&#9650;</span><span>Agent 對話</span></a></li>
         <li id="admin-nav" style="display: none;"><a data-tab="admin" onclick="switchTab('admin', this)"><span class="nav-icon">&#9874;</span><span>管理</span></a></li>
         <li id="sysconfig-nav" style="display: none;"><a data-tab="sysconfig" onclick="switchTab('sysconfig', this)"><span class="nav-icon">&#9881;</span><span>系統設定</span></a></li>
         <li><a data-tab="docs" onclick="switchTab('docs', this)"><span class="nav-icon">&#9776;</span><span>文檔</span></a></li>
@@ -200,6 +199,7 @@
 <div id="tools" class="content">
     <div class="sub-tabs">
         <button class="sub-tab active" onclick="switchSubTab(this, 'tool-test')">API 測試</button>
+        <button class="sub-tab" onclick="switchSubTab(this, 'tool-modeltest')">模型測試</button>
         <button class="sub-tab" onclick="switchSubTab(this, 'tool-ocr')">OCR 辨識</button>
     </div>
 
@@ -250,6 +250,15 @@
             </div>
         </div>
     </div>
+
+
+</div>
+</div> <!-- End tool-test -->
+
+<!-- ===== 模型測試 sub-tab ===== -->
+<div id="tool-modeltest" class="sub-content" style="display:none;">
+<div id="test">
+    <h2 style="margin-bottom: 20px;">模型測試</h2>
 
     <!-- ===== 效能比較 Benchmark ===== -->
     <div class="test-section">
@@ -328,7 +337,7 @@
         <button class="btn" onclick="testListModels()">取得模型列表</button>
         <div id="models-response" class="response-box" style="display:none;"></div>
     </div>
-    
+
     <div class="test-section">
         <h3>2. 聊天完成測試</h3>
         <div class="input-group">
@@ -408,9 +417,8 @@
             </div>
         </div>
     </div>
-
 </div>
-</div> <!-- End tool-test -->
+</div> <!-- End tool-modeltest -->
 
 <!-- tool-speech removed -->
 <!-- speech section start (hidden, kept for JS compat) -->
@@ -1040,6 +1048,16 @@ console.log('轉錄結果:', result.text);</pre>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
+        /* === Model chip 選擇器 === */
+        #new-key-models label { transition: all .15s; }
+        #new-key-models label.chip-on { background: #eef2ff; border-color: #6366f1; color: #4338ca; font-weight: 600; }
+        #new-key-models label.chip-on span { color: #818cf8; }
+
+        /* === 測試頁按鈕顯示控制（CSS class 優先，不受重新渲染影響）=== */
+        #model-test-grid.hide-btn-key   .test-extra-btn[data-btn-type="key"]     { display: none !important; }
+        #model-test-grid.hide-btn-ai    .test-extra-btn[data-btn-type="ai"]      { display: none !important; }
+        #model-test-grid.hide-btn-snippet .test-extra-btn[data-btn-type="snippet"] { display: none !important; }
+
         /* === Benchmark 效能比較 === */
         .bench-control { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
         .bench-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -1707,31 +1725,68 @@ console.log('轉錄結果:', result.text);</pre>
     <!-- 建立新 Key -->
     <div class="status-card" style="margin-bottom: 30px;">
         <h3>建立新 API Key</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end; margin-bottom: 14px;">
             <div class="input-group" style="margin: 0;">
                 <label>使用者名稱 <span style="color: #dc3545;">*</span></label>
-                <input type="text" id="new-key-username" placeholder="例如：TeamName_ProjectName" pattern="^[\w-]{2,}$">
-                <small style="color: #999; font-size: 11px;">英文/數字/底線/橫線/中文，至少 2 字元</small>
+                <input type="text" id="new-key-username" readonly style="background:#f1f5f9; cursor:default; color:#475569;">
+                <small style="color: #999; font-size: 11px;">自動帶入登入帳號</small>
             </div>
             <div class="input-group" style="margin: 0;">
                 <label>用途描述 <span style="color: #dc3545;">*</span></label>
                 <input type="text" id="new-key-description" placeholder="例如：MES 系統、知識庫機器人">
             </div>
-            <button class="btn" onclick="createApiKey()">建立 Key</button>
+            <button class="btn" onclick="createApiKey()" style="white-space:nowrap;">建立 Key</button>
         </div>
-        <div style="margin-top: 10px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="new-key-admin"> 設為管理員
+
+        <!-- 模型多選 -->
+        <div style="margin-bottom: 12px;">
+            <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:8px;">
+                開放模型 <span style="font-weight:400; color:#94a3b8;">（說明卡會列出勾選的模型）</span>
             </label>
+            <div id="new-key-models" style="display:flex; flex-wrap:wrap; gap:8px;">
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-gemma4">
+                    <input type="checkbox" value="gemma4:latest" checked onchange="toggleModelChip(this)"> gemma4:latest <span style="color:#94a3b8; font-size:11px;">快速</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-gemma3">
+                    <input type="checkbox" value="gemma3:27b" onchange="toggleModelChip(this)"> gemma3:27b <span style="color:#94a3b8; font-size:11px;">均衡</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-nemotron">
+                    <input type="checkbox" value="nemotron3:33b" onchange="toggleModelChip(this)"> nemotron3:33b <span style="color:#94a3b8; font-size:11px;">推理</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-gptoss">
+                    <input type="checkbox" value="mlx-community/gpt-oss-120b-MXFP4-Q4" onchange="toggleModelChip(this)"> gpt-oss-120b <span style="color:#94a3b8; font-size:11px;">最強</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-vl">
+                    <input type="checkbox" value="mlx-community/Qwen2.5-VL-7B-Instruct-4bit" onchange="toggleModelChip(this)"> Qwen2.5-VL <span style="color:#94a3b8; font-size:11px;">視覺</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-auto">
+                    <input type="checkbox" value="auto" onchange="toggleModelChip(this)"> auto <span style="color:#94a3b8; font-size:11px;">自動路由</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid #e2e8f0; border-radius:20px; cursor:pointer; font-size:13px; user-select:none;" id="ml-deepseek">
+                    <input type="checkbox" value="deepseek-chat" onchange="toggleModelChip(this)"> deepseek-chat <span style="color:#94a3b8; font-size:11px;">雲端</span>
+                </label>
+            </div>
         </div>
+
     </div>
 
-    <!-- 新建立的 Key 顯示 -->
+    <!-- 新建立的 Key 顯示 + 說明卡 -->
     <div id="new-key-result" class="status-card" style="display: none; background: #d4edda; border: 1px solid #28a745;">
         <h3 style="color: #155724;">API Key 建立成功！</h3>
         <p style="color: #155724; margin-bottom: 10px;">請立即複製並保存此 Key，它將不會再次顯示：</p>
         <div style="background: #fff; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 16px; word-break: break-all;" id="new-key-value"></div>
-        <button class="btn" style="margin-top: 15px;" onclick="copyNewKey()">複製 Key</button>
+        <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn" onclick="copyNewKey()">複製 Key</button>
+            <button class="btn" style="background: #1a73e8; border-color: #1a73e8;" onclick="copyOnboardCard()">複製說明卡</button>
+        </div>
+
+        <!-- 說明卡預覽 -->
+        <div style="margin-top: 20px; border-top: 1px solid #b2dfdb; padding-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: #155724; font-size: 14px;">說明卡預覽（發給新人的內容）</strong>
+            </div>
+            <pre id="onboard-card" style="background: #fff; padding: 16px; border-radius: 8px; font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-all; color: #1e293b; border: 1px solid #c3e6cb;"></pre>
+        </div>
     </div>
 
     <!-- Key 列表 -->
@@ -2000,50 +2055,13 @@ console.log('轉錄結果:', result.text);</pre>
 
 </div>
 
-<div id="agent" class="content">
-    <h2 style="margin-top:0;">Agent 對話 <span style="font-size:13px;color:#94a3b8;font-weight:normal;">/v1/chat/completions · model="auto"</span></h2>
-    <p style="color:#475569;font-size:14px;margin-bottom:14px;">
-        Router 會用最小的 Qwen2.5-1.5B 自動分類你的需求（code / reasoning / vision / quick / general），轉發給最適合的本地模型，回應裡會有 <code>agent_route</code> 標記實際走的路徑。
-    </p>
-
-    <div class="agent-routing-summary">
-        <span class="agent-route-pill" data-route="code">code → gpt-oss 120B</span>
-        <span class="agent-route-pill" data-route="reasoning">reasoning → gpt-oss 120B</span>
-        <span class="agent-route-pill" data-route="vision">vision → Qwen2.5-VL 7B</span>
-        <span class="agent-route-pill" data-route="quick">quick → Qwen2.5 1.5B</span>
-        <span class="agent-route-pill" data-route="general">general → Gemma 3 27B</span>
-    </div>
-    <div class="agent-prompt-buttons">
-        <span class="agent-prompt-label">複製給：</span>
-        <button class="btn btn-small agent-prompt-btn" data-tool="claude"
-                type="button" onclick="copyAgentApiPrompt('claude')"
-                title="貼到 Claude Code，或存成 CLAUDE.md">Claude Code</button>
-        <button class="btn btn-small agent-prompt-btn" data-tool="codex"
-                type="button" onclick="copyAgentApiPrompt('codex')"
-                title="貼到 OpenAI Codex CLI，或存成 AGENTS.md">Codex</button>
-        <button class="btn btn-small agent-prompt-btn" data-tool="opencode"
-                type="button" onclick="copyAgentApiPrompt('opencode')"
-                title="貼到 OpenCode CLI，或存成 AGENTS.md">OpenCode</button>
-    </div>
-
-    <div id="agent-chat-box" class="agent-chat-box" aria-live="polite"></div>
-
-    <div class="agent-input-row">
-        <textarea id="agent-input" rows="3" placeholder="輸入訊息（Enter 送出 / Shift+Enter 換行）"
-                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendAgentMessage();}"></textarea>
-        <div class="agent-input-actions">
-            <button class="btn" onclick="sendAgentMessage()" id="agent-send-btn">送出</button>
-            <button class="btn btn-secondary" onclick="clearAgentChat()" type="button">清空對話</button>
-        </div>
-    </div>
-</div>
-
 <div id="docs" class="content">
     <h2>API 使用文檔</h2>
 
     <!-- ==================== 快速開始 ==================== -->
     <div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px 20px; margin-bottom: 30px;">
-        <p style="margin: 0; font-size: 14px;"><strong>Base URL：</strong><code>https://ollama_pjapi.theaken.com</code></p>
+        <p style="margin: 0; font-size: 14px;"><strong>外網 Base URL：</strong><code>https://ollama_pjapi.theaken.com</code></p>
+        <p style="margin: 6px 0 0; font-size: 14px;"><strong>內網 Base URL：</strong><code>http://192.168.0.6:8777</code></p>
         <p style="margin: 6px 0 0; font-size: 14px;"><strong>認證方式：</strong><code>Authorization: Bearer YOUR_API_KEY</code></p>
         <p style="margin: 6px 0 0; font-size: 13px; color: #999;">所有 API 均相容 OpenAI 格式，可直接替換 base_url 使用。</p>
     </div>
@@ -2053,7 +2071,8 @@ console.log('轉錄結果:', result.text);</pre>
         <div class="code-block">
             <pre>import requests, json
 
-API_URL = "https://ollama_pjapi.theaken.com"
+API_URL = "https://ollama_pjapi.theaken.com"  # 外網
+# API_URL = "http://192.168.0.6:8777"          # 內網
 API_KEY = "YOUR_API_KEY"
 headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}</pre>
         </div>
@@ -2065,48 +2084,76 @@ headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/js
 
     <h4>可用模型</h4>
     <table class="api-table">
-        <thead><tr><th>類型</th><th>提供者</th><th>模型</th><th>說明</th></tr></thead>
+        <thead><tr><th>類型</th><th>提供者</th><th>模型 ID</th><th>Context</th><th>說明</th></tr></thead>
         <tbody>
             <tr>
                 <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
-                <td>llama.cpp</td>
-                <td><code>gpt-oss:120b</code></td>
-                <td>120B 通用大模型，複雜推理</td>
-            </tr>
-            <tr>
-                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
-                <td>llama.cpp</td>
-                <td><code>gemma4:31b</code></td>
-                <td>Google Gemma4 31B</td>
-            </tr>
-            <tr>
-                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
-                <td>llama.cpp</td>
-                <td><code>Qwen3.5:122b</code></td>
-                <td>通義千問 MoE，256K 上下文</td>
+                <td>Ollama</td>
+                <td><code>gemma4:latest</code></td>
+                <td>128K</td>
+                <td>Google Gemma 4 8B，128 tok/s，OCR AI 整理主力</td>
             </tr>
             <tr>
                 <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
                 <td>Ollama</td>
-                <td><code>qwen2.5:72b</code></td>
-                <td>通義千問 72B，中文頂尖</td>
+                <td><code>gemma3:27b</code></td>
+                <td>128K</td>
+                <td>Google Gemma 3 27B，多模態視覺，中英文均強</td>
             </tr>
             <tr>
                 <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
                 <td>Ollama</td>
-                <td><code>llava:7b</code></td>
-                <td>視覺模型，支援圖片輸入</td>
+                <td><code>nemotron3:33b</code></td>
+                <td>128K</td>
+                <td>NVIDIA Nemotron 33B Omni，多模態，86 tok/s</td>
+            </tr>
+            <tr>
+                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
+                <td>Ollama</td>
+                <td><code>qwen3.6:35b-a3b-mlx-bf16</code></td>
+                <td>256K</td>
+                <td>Qwen3.6 35B MoE BF16，256K 超長上下文</td>
+            </tr>
+            <tr>
+                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
+                <td>MLX</td>
+                <td><code>mlx-community/gpt-oss-120b-MXFP4-Q4</code></td>
+                <td>131K</td>
+                <td>GPT-OSS 120B MLX 版，高品質複雜推理</td>
+            </tr>
+            <tr>
+                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
+                <td>MLX</td>
+                <td><code>mlx-community/Qwen2.5-1.5B-Instruct-4bit</code></td>
+                <td>32K</td>
+                <td>Qwen2.5 1.5B 超輕量，極低延遲，自動路由 quick</td>
+            </tr>
+            <tr>
+                <td><span style="background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">地端</span></td>
+                <td>MLX</td>
+                <td><code>mlx-community/Qwen2.5-VL-7B-Instruct-4bit</code></td>
+                <td>128K</td>
+                <td>Qwen2.5-VL 7B 視覺語言，圖片理解 / OCR</td>
+            </tr>
+            <tr>
+                <td><span style="background: #6366f1; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">路由</span></td>
+                <td>自動</td>
+                <td><code>auto</code></td>
+                <td>—</td>
+                <td>系統自動分類並路由至最適模型</td>
             </tr>
             <tr>
                 <td><span style="background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">雲端</span></td>
                 <td>DeepSeek</td>
                 <td><code>deepseek-chat</code></td>
+                <td>64K</td>
                 <td>DeepSeek 對話模型</td>
             </tr>
             <tr>
                 <td><span style="background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">雲端</span></td>
                 <td>DeepSeek</td>
                 <td><code>deepseek-reasoner</code></td>
+                <td>64K</td>
                 <td>DeepSeek 推理模型，數學/邏輯</td>
             </tr>
         </tbody>
@@ -2116,9 +2163,9 @@ headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/js
     <div class="code-wrapper">
         <button class="copy-btn" onclick="copyCode(this)">複製</button>
         <div class="code-block">
-            <pre># 基本對話
+            <pre># 基本對話（指定模型）
 response = requests.post(f"{API_URL}/v1/chat/completions", headers=headers, json={
-    "model": "gpt-oss:120b",
+    "model": "gemma4:latest",   # 快速，128K context
     "messages": [
         {"role": "system", "content": "你是一個專業的助手"},
         {"role": "user", "content": "請解釋什麼是機器學習"}
@@ -2134,7 +2181,7 @@ print(response.json()["choices"][0]["message"]["content"])</pre>
         <div class="code-block">
             <pre># 串流模式 — 逐字輸出
 response = requests.post(f"{API_URL}/v1/chat/completions", headers=headers, json={
-    "model": "deepseek-chat",
+    "model": "gemma3:27b",
     "messages": [{"role": "user", "content": "寫一篇關於 AI 的短文"}],
     "stream": True
 }, stream=True)
@@ -2156,7 +2203,7 @@ for line in response.iter_lines():
         <div class="code-block">
             <pre>{
   "id": "chatcmpl-xxx",
-  "model": "gpt-oss:120b",
+  "model": "gemma4:latest",
   "choices": [{
       "index": 0,
       "message": {"role": "assistant", "content": "回應內容..."},
@@ -2272,7 +2319,6 @@ for name, status in response.json()["endpoints"].items():
     <script src="/static/js/ocr.js"></script>
     <script src="/static/js/permissions.js"></script>
     <script src="/static/js/usage.js"></script>
-    <script src="/static/js/agent.js"></script>
 
     <!-- RWD: close mobile drawer when nav item is tapped -->
     <script>
@@ -2289,5 +2335,84 @@ for name, status in response.json()["endpoints"].items():
             }
         });
     </script>
+
+<!-- 模型說明卡 Modal（API 測試頁，可選 Key） -->
+<div id="modelCardModal" style="display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:14px; width:min(780px,95vw); max-height:88vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.3);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid #e2e8f0;">
+            <div>
+                <div style="font-size:15px; font-weight:700; color:#1e293b;" id="modelCardTitle">說明卡</div>
+                <div style="font-size:12px; color:#94a3b8; margin-top:2px;">複製後可直接貼給 Claude 使用</div>
+            </div>
+            <button onclick="closeModelCard()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1; padding:4px;">&times;</button>
+        </div>
+        <div style="padding:14px 22px; border-bottom:1px solid #f1f5f9; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-size:12px; font-weight:600; color:#64748b;">使用者</label>
+                <select id="modelCardUserSelect" onchange="onModelCardUserChange()" style="padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#1e293b; background:#fff;">
+                    <option value="">載入中…</option>
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-size:12px; font-weight:600; color:#64748b;">API Key</label>
+                <select id="modelCardKeySelect" onchange="refreshModelCard()" style="padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#1e293b; background:#fff;">
+                    <option value="">— 請先選使用者 —</option>
+                </select>
+            </div>
+        </div>
+        <div style="overflow:auto; padding:16px 22px; flex:1;">
+            <pre id="modelCardContent" style="white-space:pre-wrap; font-family:'SF Mono',Consolas,monospace; font-size:12.5px; line-height:1.7; background:#f8fafc; padding:16px; border-radius:10px; margin:0; color:#1e293b; border:1px solid #e2e8f0;"></pre>
+        </div>
+        <div style="padding:14px 22px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeModelCard()" style="padding:9px 20px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#64748b; font-size:13px; font-weight:600; cursor:pointer;">關閉</button>
+            <button id="modelCardCopyBtn" onclick="copyModelCard()" style="padding:9px 20px; border-radius:8px; border:none; background:#7c3aed; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">複製說明卡</button>
+        </div>
+    </div>
+</div>
+
+<!-- 說明卡 Modal -->
+<div id="onboardModal" style="display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.5); align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:14px; width:min(760px,95vw); max-height:88vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.3);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid #e2e8f0;">
+            <div>
+                <div style="font-size:15px; font-weight:700; color:#1e293b;">說明卡</div>
+                <div style="font-size:12px; color:#94a3b8; margin-top:2px;">複製後可直接貼給 Claude 使用</div>
+            </div>
+            <button onclick="closeOnboardModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1; padding:4px;">&times;</button>
+        </div>
+        <div style="overflow:auto; padding:18px 22px; flex:1;">
+            <pre id="onboardModalContent" style="white-space:pre-wrap; font-family:'SF Mono',Consolas,monospace; font-size:12.5px; line-height:1.7; background:#f8fafc; padding:16px; border-radius:10px; margin:0; color:#1e293b; border:1px solid #e2e8f0;"></pre>
+        </div>
+        <div style="padding:14px 22px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeOnboardModal()" style="padding:9px 20px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#64748b; font-size:13px; font-weight:600; cursor:pointer;">關閉</button>
+            <button id="onboardModalCopyBtn" onclick="copyOnboardModalContent()" style="padding:9px 20px; border-radius:8px; border:none; background:#6366f1; color:#fff; font-size:13px; font-weight:600; cursor:pointer;">複製說明卡</button>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('modelCardModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModelCard();
+});
+
+function showOnboardModal(text) {
+    document.getElementById('onboardModalContent').textContent = text;
+    document.getElementById('onboardModalCopyBtn').textContent = '複製說明卡';
+    const modal = document.getElementById('onboardModal');
+    modal.style.display = 'flex';
+}
+function closeOnboardModal() {
+    document.getElementById('onboardModal').style.display = 'none';
+}
+document.getElementById('onboardModal').addEventListener('click', function(e) {
+    if (e.target === this) closeOnboardModal();
+});
+async function copyOnboardModalContent() {
+    const text = document.getElementById('onboardModalContent').textContent;
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('onboardModalCopyBtn');
+    btn.textContent = '已複製 ✓';
+    setTimeout(() => btn.textContent = '複製說明卡', 2000);
+}
+</script>
 </body>
 </html>

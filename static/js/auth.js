@@ -196,12 +196,6 @@ function showMainContent() {
         if (sysconfigTab) sysconfigTab.style.display = 'none';
     }
 
-    // Agent 對話分頁：只給帳號 aken 看
-    const agentNav = document.getElementById('agent-nav');
-    if (agentNav) {
-        agentNav.style.display = (currentUser && currentUser.username === 'aken') ? 'block' : 'none';
-    }
-
     // Load initial data
     checkStatusEnhanced();
     loadModelOptions();
