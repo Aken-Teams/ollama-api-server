@@ -2709,104 +2709,16 @@ async def ocr_get_job(job_id: str, user: Dict = Depends(get_current_user)):
     return {**job, "backend_stats": _ocr_backend_stats()}
 
 
-_REMITTANCE_PROMPT = """你是專業的銀行匯款通知書文件整理助手。
-
-以下是 OCR 辨識出的銀行匯入/匯出匯款通知書原文（可能有多頁、辨識誤差）。請：
-
-1. 判斷頁數，逐頁整理
-2. 提取每頁關鍵欄位：匯款編號 / 通知日期 / 生效日 / 匯款人（名稱、地址、帳號）/ 收款人（名稱、地址、帳號、分行）/ 匯款金額（幣別+金額+大寫）/ 原匯款金額 / 匯款銀行 / 存匯行 / 費用（誰支付、金額）/ 匯款附言 / 備註
-3. 自動修正明顯的 OCR 錯誤（例如空格錯位、字形相似錯字）但不要臆造內容
-4. 以 Markdown 表格或條列呈現，每頁一段，清晰易讀
-5. 若有多筆匯款，摘要在最後列「總覽」表格（頁次/匯款編號/金額/匯款人/收款人）
-
-只輸出整理後的 Markdown，不要加入解釋、前言或後記。"""
-
-
-async def _format_job_with_deepseek(job_id: str):
-    job = _ocr_jobs.get(job_id)
-    if not job:
-        return
-    import json as _json
-    job["ai_format_status"] = "running"
-    job["formatted_markdown"] = ""
-    job["ai_format_usage"] = None
-    job["ai_format_error"] = None
-    try:
-        if not DEEPSEEK_API_KEY:
-            job["ai_format_status"] = "error"
-            job["ai_format_error"] = "DEEPSEEK_API_KEY is not configured"
-            return
-        text = job.get("full_text") or ""
-        if not text.strip():
-            job["ai_format_status"] = "error"
-            job["ai_format_error"] = "OCR 內容為空，無法整理"
-            return
-
-        buf = []
-        async with httpx.AsyncClient(timeout=300) as client:
-            async with client.stream(
-                "POST",
-                f"{DEEPSEEK_BASE_URL}/chat/completions",
-                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [
-                        {"role": "system", "content": _REMITTANCE_PROMPT},
-                        {"role": "user", "content": text},
-                    ],
-                    "temperature": 0.2,
-                    "stream": True,
-                },
-            ) as r:
-                if r.status_code != 200:
-                    body = await r.aread()
-                    job["ai_format_status"] = "error"
-                    job["ai_format_error"] = f"DeepSeek API {r.status_code}: {body.decode('utf-8', errors='replace')[:400]}"
-                    return
-                async for raw_line in r.aiter_lines():
-                    if not raw_line:
-                        continue
-                    if not raw_line.startswith("data: "):
-                        continue
-                    payload = raw_line[6:].strip()
-                    if payload == "[DONE]":
-                        break
-                    try:
-                        obj = _json.loads(payload)
-                    except Exception:
-                        continue
-                    choices = obj.get("choices") or []
-                    if choices:
-                        delta = choices[0].get("delta") or {}
-                        piece = delta.get("content") or ""
-                        if piece:
-                            buf.append(piece)
-                            # Update job incrementally so frontend polling can render partial markdown
-                            job["formatted_markdown"] = "".join(buf)
-                    usage = obj.get("usage")
-                    if usage:
-                        job["ai_format_usage"] = usage
-        job["formatted_markdown"] = "".join(buf).strip()
-        job["ai_format_status"] = "done"
-    except Exception as exc:
-        logger.exception(f"AI format failed for job {job_id}")
-        job["ai_format_status"] = "error"
-        job["ai_format_error"] = str(exc)[:300]
-
-
 @app.post("/v1/ocr/jobs/{job_id}/format")
 async def ocr_format_job(job_id: str, user: Dict = Depends(get_current_user)):
-    """Trigger DeepSeek AI post-processing to extract structured Markdown from OCR text."""
-    job = _ocr_jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or expired")
-    if job["status"] != "done":
-        raise HTTPException(status_code=400, detail=f"Job must be completed (current: {job['status']})")
-    if job.get("ai_format_status") == "running":
-        return {"job_id": job_id, "ai_format_status": "running"}
-    job["ai_format_status"] = "queued"
-    asyncio.create_task(_format_job_with_deepseek(job_id))
-    return {"job_id": job_id, "ai_format_status": "queued"}
+    """Deprecated. This endpoint used to run DeepSeek with a hard-coded bank-
+    remittance-slip system prompt regardless of document type, which silently
+    mis-interpreted any OCR output as a finance document. Returns 410 Gone now
+    — clients should call /v1/chat/completions directly with their own prompt."""
+    raise HTTPException(
+        status_code=410,
+        detail="此 endpoint 已停用：通用 OCR gateway 不應內建特定領域（如銀行匯款單）的後處理。若需 AI 整理，請改用 /v1/chat/completions 自行帶 system prompt。"
+    )
 
 
 @app.get("/v1/ocr/queue")

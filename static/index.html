@@ -1486,22 +1486,8 @@ console.log('轉錄結果:', result.text);</pre>
                         `;
                         textEl.textContent = job.full_text || textEl.textContent;
                         localStorage.removeItem('ocr_last_job');
-                        const aiBtn = document.getElementById('ocr-ai-run');
-                        if (aiBtn) {
-                            aiBtn.dataset.jobId = job_id;
-                            aiBtn.disabled = false;
-                            aiBtn.textContent = '🤖 用 DeepSeek 整理成 Markdown';
-                        }
                         // Detect failed pages + render retry banner
                         renderOcrRetryBanner(job, model, file);
-                        // Auto-trigger AI format unless user disabled it
-                        const autoAi = document.getElementById('ocr-auto-ai');
-                        if (aiBtn && (!autoAi || autoAi.checked)) {
-                            setTimeout(() => { if (!aiBtn.disabled) aiBtn.click(); }, 400);
-                        } else {
-                            const mdHint = document.getElementById('ocr-simple-md');
-                            if (mdHint) mdHint.innerHTML = '<div style="color:#94a3b8;">點上方「🤖 用 DeepSeek 整理成 Markdown」按鈕，讓 AI 自動提取匯款資訊並整理。</div>';
-                        }
                         setTimeout(() => { progress.style.display = 'none'; }, 3000);
                         break;
                     }
@@ -1519,87 +1505,10 @@ console.log('轉錄結果:', result.text);</pre>
             }
         }
     
-        // OCR tabs + AI format
+        // OCR retry banner (the DeepSeek "remittance slip" AI format
+        // path was removed — see commit history; the gateway no longer
+        // injects a bank-remittance system prompt).
         (function() {
-            document.addEventListener('click', async (e) => {
-                const tabBtn = e.target.closest('.ocr-tab-btn');
-                if (tabBtn) {
-                    document.querySelectorAll('.ocr-tab-btn').forEach(b => {
-                        b.style.borderBottom = '3px solid transparent';
-                        b.style.color = '#64748b';
-                    });
-                    tabBtn.style.borderBottom = '3px solid #7c3aed';
-                    tabBtn.style.color = '#7c3aed';
-                    const isMd = tabBtn.dataset.tab === 'md';
-                    document.getElementById('ocr-simple-text').style.display = isMd ? 'none' : 'block';
-                    document.getElementById('ocr-simple-md').style.display = isMd ? 'block' : 'none';
-                }
-                if (e.target.id === 'ocr-ai-run') {
-                    const btn = e.target;
-                    const jobId = btn.dataset.jobId;
-                    if (!jobId) return;
-                    const statusEl = document.getElementById('ocr-ai-status');
-                    const mdEl = document.getElementById('ocr-simple-md');
-                    btn.disabled = true;
-                    btn.textContent = '⏳ AI 串流中…';
-                    statusEl.innerHTML = '<span class="ocr-ai-spinner"></span> 正在請 DeepSeek 串流整理…';
-                    mdEl.classList.add('markdown-pretty');
-                    mdEl.innerHTML = '<div style="color:#64748b;">連線中…</div>';
-                    document.getElementById('ocr-tab-md').click();
-                    const headers = { 'Authorization': `Bearer ${window.MASTER_API_KEY || 'pj-admin-zhpjaiaoi-2024'}` };
-                    try {
-                        await fetch(`${window.API_URL || ''}/v1/ocr/jobs/${jobId}/format`, { method: 'POST', headers });
-                        const t0 = performance.now();
-                        let lastLen = 0;
-                        while (true) {
-                            await new Promise(r => setTimeout(r, 900));
-                            const r = await fetch(`${window.API_URL || ''}/v1/ocr/jobs/${jobId}`, { headers });
-                            if (!r.ok) { statusEl.textContent = '❌ 查詢失敗'; break; }
-                            const j = await r.json();
-                            const md = j.formatted_markdown || '';
-                            const running = j.ai_format_status === 'running' || j.ai_format_status === 'queued';
-                            // Render incrementally
-                            mdEl.innerHTML = renderMarkdown(md + (running ? ' ▋' : ''));
-                            if (md.length !== lastLen) {
-                                lastLen = md.length;
-                                mdEl.scrollTop = mdEl.scrollHeight;
-                            }
-                            const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
-                            if (j.ai_format_status === 'done') {
-                                const u = j.ai_format_usage || {};
-                                statusEl.innerHTML = `✅ 整理完成 · ${elapsed}s · 輸入 ${u.prompt_tokens||'?'} / 輸出 ${u.completion_tokens||'?'} tokens
-                                    <button onclick="navigator.clipboard.writeText(document.getElementById('ocr-simple-md-raw').value).then(()=>{this.textContent='已複製 ✓'})" style="margin-left:8px;padding:4px 12px;border:1px solid #cbd5e0;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">📋 複製 Markdown</button>
-                                    <button onclick="exportOcrMarkdownPdf(this)" style="margin-left:4px;padding:4px 12px;border:1px solid #ef4444;background:#fff;color:#ef4444;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📄 匯出 PDF</button>`;
-                                // Hidden textarea holding raw markdown for copying
-                                let raw = document.getElementById('ocr-simple-md-raw');
-                                if (!raw) {
-                                    raw = document.createElement('textarea');
-                                    raw.id = 'ocr-simple-md-raw';
-                                    raw.style.display = 'none';
-                                    mdEl.parentNode.appendChild(raw);
-                                }
-                                raw.value = md;
-                                btn.textContent = '🔄 重新整理';
-                                btn.disabled = false;
-                                break;
-                            }
-                            if (j.ai_format_status === 'error') {
-                                statusEl.textContent = '❌ ' + (j.ai_format_error || '整理失敗');
-                                mdEl.innerHTML = '<div style="color:#991b1b;">' + (j.ai_format_error || '錯誤') + '</div>';
-                                btn.textContent = '🔄 再試一次';
-                                btn.disabled = false;
-                                break;
-                            }
-                            statusEl.innerHTML = `<span class="ocr-ai-spinner"></span> 串流中 · ${elapsed}s · 已接收 ${md.length} 字`;
-                        }
-                    } catch (err) {
-                        statusEl.textContent = '❌ ' + err.message;
-                        btn.disabled = false;
-                        btn.textContent = '🔄 再試一次';
-                    }
-                }
-            });
-
             // Render a retry banner showing failure summary and alternative models
             window.renderOcrRetryBanner = function(job, currentModel, file) {
                 const wrap = document.getElementById('ocr-simple-result');
