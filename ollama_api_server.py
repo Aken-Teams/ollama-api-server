@@ -2624,11 +2624,16 @@ async def ocr_submit(
     import time as _time, uuid as _uuid
 
     record_usage_extra(request, model=model)
-    af = user.get("permissions", {}).get("allowed_features")
+    perms = user.get("permissions", {})
+    af = perms.get("allowed_features")
     if af is not None and "ocr" not in af:
         raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
     if model not in OCR_MODELS:
         raise HTTPException(status_code=400, detail=f"Unknown OCR model: {model}")
+    # Per-model permission (same field as chat — chat & OCR model IDs don't overlap).
+    allowed_models = perms.get("allowed_models")
+    if allowed_models is not None and model not in allowed_models:
+        raise HTTPException(status_code=403, detail=f"您沒有使用 OCR 模型 '{model}' 的權限")
 
     file_content = await file.read()
     file_size = len(file_content)
@@ -2721,6 +2726,87 @@ async def ocr_format_job(job_id: str, user: Dict = Depends(get_current_user)):
     )
 
 
+class OcrRequestKeyBody(BaseModel):
+    model: str
+
+
+@app.post("/v1/ocr/request-key")
+async def ocr_request_key(body: OcrRequestKeyBody, user: Dict = Depends(get_current_user)):
+    """Issue (or rotate) a per-OCR-model API key for the requesting user.
+
+    Auth: any authenticated user (not admin-only). Each (user, model) pair gets
+    one shared synthetic account named `<requester>-ocr-<slug>`; calling this
+    again for the same pair rotates the key (invalidating any previously-handed-
+    out plaintext)."""
+    import re as _re
+
+    if body.model not in OCR_MODELS:
+        raise HTTPException(status_code=400, detail=f"未知的 OCR 模型 '{body.model}'")
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    requester = user.get("username") or ""
+    if not requester:
+        raise HTTPException(status_code=403, detail="無法識別申請者身份")
+
+    # Build a deterministic per-user/per-model username.
+    safe_user = _re.sub(r"[^A-Za-z0-9_-]+", "-", requester).strip("-") or "anon"
+    slug = _re.sub(r"[^A-Za-z0-9]+", "-", body.model).strip("-")
+    target_username = f"{safe_user}-ocr-{slug}"[:100]
+
+    api_key = generate_api_key()
+    api_key_hash = hash_api_key(api_key)
+    api_key_prefix = api_key[:8]
+    description = f"Per-OCR-model key for '{body.model}' (requested by {requester})"
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                # Insert or rotate
+                await cursor.execute(
+                    """INSERT INTO api_keys
+                           (username, api_key_hash, api_key_prefix, is_admin, is_active, description)
+                       VALUES (%s, %s, %s, FALSE, TRUE, %s)
+                       ON DUPLICATE KEY UPDATE
+                           api_key_hash = VALUES(api_key_hash),
+                           api_key_prefix = VALUES(api_key_prefix),
+                           description = VALUES(description),
+                           is_active = TRUE""",
+                    (target_username, api_key_hash, api_key_prefix, description),
+                )
+                # rowcount: 1 = INSERT, 2 = UPDATE on duplicate
+                rotated = cursor.rowcount == 2
+
+                # Lock permissions to this single OCR model + ocr feature
+                await cursor.execute(
+                    """INSERT INTO user_permissions
+                           (username, allowed_models, allowed_features, daily_request_limit, daily_token_limit)
+                       VALUES (%s, %s, %s, 0, 0)
+                       ON DUPLICATE KEY UPDATE
+                           allowed_models = VALUES(allowed_models),
+                           allowed_features = VALUES(allowed_features)""",
+                    (target_username, json.dumps([body.model]), json.dumps(["ocr"])),
+                )
+
+        logger.info(f"OCR per-model key issued: {target_username} (rotated={rotated}) by {requester}")
+        return {
+            "username": target_username,
+            "model": body.model,
+            "api_key": api_key,
+            "rotated": rotated,
+            "note": (
+                f"這把 Key 只能呼叫 OCR 模型「{body.model}」、其他模型一律 403。"
+                + ("舊 Key 已失效。" if rotated else "")
+                + " 完整 Key 只會出現這一次，請立即保存。"
+            ),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to issue OCR per-model key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/v1/ocr/queue")
 async def ocr_queue_status(user: Dict = Depends(get_current_user)):
     """Return concurrency limits + active/waiting counts per backend, and all active jobs."""
@@ -2765,11 +2851,16 @@ async def ocr_recognize_stream(
     import base64 as _b64, time as _time, json as _json
 
     record_usage_extra(request, model=model)
-    af = user.get("permissions", {}).get("allowed_features")
+    perms = user.get("permissions", {})
+    af = perms.get("allowed_features")
     if af is not None and "ocr" not in af:
         raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
     if model not in OCR_MODELS:
         raise HTTPException(status_code=400, detail=f"Unknown OCR model: {model}")
+    # Per-model permission (same field as chat — chat & OCR model IDs don't overlap).
+    allowed_models = perms.get("allowed_models")
+    if allowed_models is not None and model not in allowed_models:
+        raise HTTPException(status_code=403, detail=f"您沒有使用 OCR 模型 '{model}' 的權限")
     model_info = OCR_MODELS[model]
 
     file_content = await file.read()
@@ -2974,7 +3065,8 @@ async def ocr_recognize(
     - language: Target language for OCR (auto, zh, en, ja, etc.)
     """
     record_usage_extra(request, model=model)
-    af = user.get("permissions", {}).get("allowed_features")
+    perms = user.get("permissions", {})
+    af = perms.get("allowed_features")
     if af is not None and "ocr" not in af:
         raise HTTPException(status_code=403, detail="您沒有使用 OCR 辨識功能的權限")
 
@@ -2985,7 +3077,11 @@ async def ocr_recognize(
 
     # Validate model
     if model not in OCR_MODELS:
-        raise HTTPException(status_code=400, detail=f"Unknown OCR model: {model}. Available: {list(OCR_MODELS.keys())}")
+        raise HTTPException(status_code=400, detail=f"未知的 OCR 模型 '{model}'。請洽管理員確認可用模型。")
+    # Per-model permission (same field as chat).
+    allowed_models = perms.get("allowed_models")
+    if allowed_models is not None and model not in allowed_models:
+        raise HTTPException(status_code=403, detail=f"您沒有使用 OCR 模型 '{model}' 的權限")
 
     model_info = OCR_MODELS[model]
 
